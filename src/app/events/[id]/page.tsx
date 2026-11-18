@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CongestionPanel } from "@/components/CongestionPanel";
 import { CrewFinder } from "@/components/CrewFinder";
+import { currentUser } from "@/lib/auth";
 import { getCongestion } from "@/lib/data/congestion";
 import { getShow } from "@/lib/data/shows";
 import { getVenue3D } from "@/lib/data/venue3d";
@@ -13,9 +14,9 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const show = await getShow(id);
   if (!show) notFound();
+  const [user, crews] = await Promise.all([currentUser(), listCrews(show.id, { upcomingOnly: true })]);
   const congestion = getCongestion();
   const has3d = getVenue3D().some((v) => v.venueId === show.venueId);
-  const openCount = listCrews(show.id).filter((c) => new Date(c.startAt).getTime() > Date.now()).length;
 
   return (
     <div className="space-y-4">
@@ -23,9 +24,9 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
       <section>
         <p className="text-sm text-violet-700">{show.place}</p>
         <h1 className="text-2xl font-extrabold">{show.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{openCount > 0 ? `모집 중인 번개 ${openCount}개` : "아직 열린 번개가 없어요"}</p>
+        <p className="mt-1 text-sm text-slate-500">{crews.length > 0 ? `모집 중인 번개 ${crews.length}개` : "아직 열린 번개가 없어요"}</p>
       </section>
-      <CrewFinder show={show} curves={congestion.curves} />
+      <CrewFinder show={show} curves={congestion.curves} user={user && { nickname: user.nickname, ageGroup: user.ageGroup }} />
       <CongestionPanel data={congestion} showZones={false} />
       {has3d && (
         <Link href={`/venues?v=${show.venueId}`} className="block rounded-2xl border border-slate-200 bg-white p-4 text-center text-sm">

@@ -9,10 +9,12 @@
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "convert:dae": "node --max-old-space-size=8000 scripts/sketchup-dae-to-glb.mjs"
+    "convert:dae": "node --max-old-space-size=8000 scripts/sketchup-dae-to-glb.mjs",
+    "db:migrate": "node --env-file=.env.local scripts/db-migrate.mjs"
   },
   "dependencies": {
     "fast-xml-parser": "^5.12.1",
+    "mysql2": "^3.11.5",
     "next": "15.5.29",
     "react": "19.1.0",
     "react-dom": "19.1.0",

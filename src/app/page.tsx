@@ -14,8 +14,7 @@ export default async function Home() {
   const congestion = getCongestion();
   const showById = new Map(shows.map((s) => [s.id, s]));
 
-  const now = Date.now();
-  const open = listCrews().filter((c) => new Date(c.startAt).getTime() > now && showById.has(c.eventId));
+  const open = (await listCrews(undefined, { upcomingOnly: true })).filter((c) => showById.has(c.eventId));
   const openCounts: Record<string, number> = {};
   for (const c of open) openCounts[c.eventId] = (openCounts[c.eventId] ?? 0) + 1;
 

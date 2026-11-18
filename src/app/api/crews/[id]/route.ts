@@ -1,54 +1,71 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getCrew, joinCrew, leaveCrew, updateMember } from "@/lib/store";
-import { parseProfile } from "@/lib/validate";
+import { jsonError, readJson, requireUser } from "@/lib/api";
+import { currentUser } from "@/lib/auth";
+import { getShow } from "@/lib/data/shows";
+import { getCrew, isMember, joinCrew, leaveCrew, updateMember } from "@/lib/store";
+import type { Crew } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** 멤버 ID는 본인 확인 토큰 역할이므로 본인 것만 노출한다 */
-function publicCrew(crew: NonNullable<ReturnType<typeof getCrew>>, me?: string | null) {
+/** 비회원·비멤버에게는 인원수만, 멤버에게는 닉네임 등 상세 공개 */
+function view(crew: Crew, userId: number | null) {
+  const member = userId !== null && isMember(crew, userId);
   return {
     ...crew,
-    members: crew.members.map((m) => ({ ...m, id: m.id === me ? m.id : undefined, isMe: m.id === me })),
+    isMember: member,
+    isHost: crew.hostId === userId,
+    members: member ? crew.members.map((m) => ({ ...m, isMe: m.userId === userId })) : [],
+    memberCount: crew.members.length,
   };
 }
 
-export async function GET(req: NextRequest, { params }: Ctx) {
+export async function GET(_req: NextRequest, { params }: Ctx) {
   const { id } = await params;
-  const crew = getCrew(id);
-  if (!crew) return NextResponse.json({ error: "크루를 찾을 수 없습니다." }, { status: 404 });
-  return NextResponse.json({ crew: publicCrew(crew, req.nextUrl.searchParams.get("me")) });
+  const crew = await getCrew(id);
+  if (!crew) return jsonError("크루를 찾을 수 없습니다.", 404);
+  const user = await currentUser();
+  return NextResponse.json({ crew: view(crew, user?.id ?? null) });
 }
 
 /** 참여 */
-export async function POST(req: NextRequest, { params }: Ctx) {
+export async function POST(_req: NextRequest, { params }: Ctx) {
+  const auth = await requireUser();
+  if (auth.res) return auth.res;
   const { id } = await params;
-  const profile = parseProfile(await req.json().catch(() => null));
-  if (!profile.ok) return NextResponse.json({ error: profile.error }, { status: 400 });
-  const r = joinCrew(id, profile.value);
-  if (r.error || !r.crew) return NextResponse.json({ error: r.error }, { status: 409 });
-  return NextResponse.json({ crew: publicCrew(r.crew, r.memberId), memberId: r.memberId });
+  const r = await joinCrew(id, auth.user);
+  if (r.error || !r.crew) return jsonError(r.error ?? "참여할 수 없습니다.", 409);
+  return NextResponse.json({ crew: view(r.crew, auth.user.id) });
 }
 
-/** 체크인 / 완주 */
+/** 본인 체크인 / 완주 (완주 시 공연장 3D 보상 해금) */
 export async function PATCH(req: NextRequest, { params }: Ctx) {
+  const auth = await requireUser();
+  if (auth.res) return auth.res;
   const { id } = await params;
-  const body = (await req.json().catch(() => null)) as { memberId?: string; checkedIn?: boolean; finished?: boolean } | null;
-  if (!body?.memberId) return NextResponse.json({ error: "memberId가 필요합니다." }, { status: 400 });
-  const crew = updateMember(id, body.memberId, {
-    checkedIn: typeof body.checkedIn === "boolean" ? body.checkedIn : undefined,
-    finished: typeof body.finished === "boolean" ? body.finished : undefined,
-  });
-  if (!crew) return NextResponse.json({ error: "멤버를 찾을 수 없습니다." }, { status: 404 });
-  return NextResponse.json({ crew: publicCrew(crew, body.memberId) });
+  const body = await readJson(req);
+  const crew = await getCrew(id);
+  if (!crew || !isMember(crew, auth.user.id)) return jsonError("크루 멤버가 아닙니다.", 403);
+  const show = await getShow(crew.eventId);
+  const updated = await updateMember(
+    id,
+    auth.user.id,
+    {
+      checkedIn: typeof body?.checkedIn === "boolean" ? body.checkedIn : undefined,
+      finished: typeof body?.finished === "boolean" ? body.finished : undefined,
+    },
+    show?.venueId,
+  );
+  if (!updated) return jsonError("멤버를 찾을 수 없습니다.", 404);
+  return NextResponse.json({ crew: view(updated, auth.user.id) });
 }
 
 /** 나가기 */
-export async function DELETE(req: NextRequest, { params }: Ctx) {
+export async function DELETE(_req: NextRequest, { params }: Ctx) {
+  const auth = await requireUser();
+  if (auth.res) return auth.res;
   const { id } = await params;
-  const me = req.nextUrl.searchParams.get("me");
-  if (!me) return NextResponse.json({ error: "memberId가 필요합니다." }, { status: 400 });
-  leaveCrew(id, me);
+  await leaveCrew(id, auth.user.id);
   return NextResponse.json({ ok: true });
 }

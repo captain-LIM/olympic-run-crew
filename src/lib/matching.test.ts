@@ -19,7 +19,8 @@ function crew(over: Partial<Crew> = {}): Crew {
     eventStartAt: eventStart.toISOString(),
     capacity: 6,
     teenOnly: false,
-    members: [{ id: "m1", nickname: "a", ageGroup: "20s", joinedAt: now.toISOString(), checkedIn: false, finished: false }],
+    hostId: 1,
+    members: [{ userId: 1, nickname: "a", ageGroup: "20s", joinedAt: now.toISOString(), checkedIn: false, finished: false }],
     createdAt: now.toISOString(),
     ...over,
   };

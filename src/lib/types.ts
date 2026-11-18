@@ -89,13 +89,23 @@ export interface Course {
 export type AgeGroup = "14-19" | "20s" | "30s" | "40+";
 
 export interface Member {
-  id: string;
+  userId: number;
   nickname: string;
   ageGroup: AgeGroup;
   joinedAt: string;
   checkedIn: boolean;
   finished: boolean;
 }
+
+export interface ChatMessage {
+  id: number;
+  userId: number;
+  nickname: string;
+  body: string;
+  createdAt: string;
+}
+
+export type ReportReason = "spam" | "abuse" | "harassment" | "unsafe" | "other";
 
 export interface Crew {
   id: string;
@@ -110,6 +120,7 @@ export interface Crew {
   capacity: number;
   /** 미성년 보호: true면 같은 연령대(14-19)만 참여 */
   teenOnly: boolean;
+  hostId: number;
   members: Member[];
   createdAt: string;
 }

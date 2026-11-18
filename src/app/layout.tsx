@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { UserMenu } from "@/components/UserMenu";
+import { currentUser } from "@/lib/auth";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,16 +11,18 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#7c3aed", width: "device-width", initialScale: 1 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const user = await currentUser().catch(() => null);
   return (
     <html lang="ko">
       <body className="antialiased">
         <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
           <nav className="mx-auto flex max-w-xl items-center justify-between px-4 py-3">
             <Link href="/" className="font-extrabold text-violet-700">🎤🏃 공연 전 한 바퀴</Link>
-            <div className="flex gap-4 text-sm">
+            <div className="flex items-center gap-3 text-sm">
               <Link href="/">공연</Link>
-              <Link href="/venues">공연장 3D</Link>
+              <Link href="/venues">3D</Link>
+              <UserMenu nickname={user?.nickname ?? null} />
             </div>
           </nav>
         </header>

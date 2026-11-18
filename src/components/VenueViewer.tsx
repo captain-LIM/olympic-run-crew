@@ -5,7 +5,6 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { loadUnlocked } from "@/lib/profile";
 import { SOURCE_DOWNLOAD_BASE } from "@/lib/venue3d";
 import type { Venue3D, VenueId } from "@/lib/types";
 
@@ -57,7 +56,13 @@ export function VenueViewer({ venues, initial }: { venues: Venue3D[]; initial?: 
   const ctx = useRef<{ camera: THREE.PerspectiveCamera; controls: OrbitControls; box: THREE.Box3; clip: THREE.Plane } | null>(null);
   const venue = venues.find((v) => v.venueId === venueId) ?? venues[0];
 
-  useEffect(() => setUnlocked(loadUnlocked()), []);
+  // 완주 보상은 계정(user_rewards)에 저장된다
+  useEffect(() => {
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d: { unlocked?: VenueId[] }) => setUnlocked(d.unlocked ?? []))
+      .catch(() => setUnlocked([]));
+  }, []);
 
   useEffect(() => {
     const mount = mountRef.current;
