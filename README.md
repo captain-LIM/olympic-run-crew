@@ -5,6 +5,8 @@
 > 한국체육산업개발(주) 개방 공공데이터 활용 공모전 출품작
 > 활용 데이터: 올림픽공원 대관정보 · 주차장 혼잡도 정보 · 올림픽공원 공연장 실감형 콘텐츠
 
+> 📐 구조와 알고리즘은 [설계서](docs/설계서.md)에 정리했습니다.
+
 ---
 
 ## 기획 배경
@@ -82,10 +84,44 @@ KSPO DOME, 올림픽홀 같은 올림픽공원 공연장의 관객은 공연 시
                      └─▶ 🎁 공연장 3D '무대 시점' 해금 (계정에 저장)
 ```
 
+## 디자인
+
+밝고 활기찬 스포츠·러닝 앱 느낌으로, 공연 전 올림픽공원을 달리는 마스코트가 서비스의 얼굴이 되도록 구성했습니다. 디자인 시스템은 [Hallmark](https://skills.sh/Nutlope/hallmark) 규칙(토큰 하나로 색·폰트 관리, 포커스 링, 대비, 모션 최소화 등)으로 점검했습니다.
+
+### 디자인 원칙
+
+- **흰 바탕 + 하늘색 + 로열블루:** 페이지는 흰색에 가까운 연한 블루그레이, 주 버튼과 선택 상태는 로열블루, 글자는 네이비입니다.
+- **크게 둥근 카드:** 카드 모서리 28px, 버튼·칩·태그는 알약 모양, 부드러운 블루 그림자를 씁니다.
+- **혼잡도는 신호등처럼:** 여유 하늘색, 보통 노랑, 혼잡 오렌지, 매우 혼잡 네이비로 막대 차트와 태그에 같은 색을 씁니다.
+- **번호 원형 목록:** 공연 목록, 모집 중인 번개, 내 번개에 `01`, `02` 번호 원을 붙이고 마우스를 올리면 파랗게 채워집니다.
+- **폰트 하나:** 한글에 강한 SUIT Variable 한 가지로 제목과 본문을 통일했습니다.
+- **접근성:** 키보드 포커스 링, 입력칸 경계 대비 3:1 이상, 장식 이미지는 스크린리더에서 숨김, `prefers-reduced-motion` 대응, 본문 바로가기 링크.
+
+### 마스코트
+
+마스코트 시트 한 장(`1254×1254`, 흰 배경)을 포즈 7개의 투명 PNG로 잘라 `public/mascot/`에 두었습니다. 다시 만들려면 시트 경로를 넘겨 실행합니다.
+
+```bash
+node scripts/cut-mascot.mjs <마스코트-시트.png>
+```
+
+| 포즈 | 쓰는 곳 |
+|---|---|
+| `hero` 폰을 들고 올림픽공원을 달림 (배경 포함) | 홈 히어로 |
+| `peek` 기둥 뒤에서 빼꼼 | 홈 혼잡도 섹션, 로그인 |
+| `run` 달리기 | 홈 공연 찾기, 크루룸 헤더 |
+| `cheer` 야광봉 응원 | 공연 상세 헤더, 회원가입, 완주 보상 |
+| `phone` 폰 확인 | 로그인 안내, 채팅 빈 화면 |
+| `concert` 공연장 뒷모습 | 3D 링크, 공연장 3D 페이지 |
+| `rest` 잔디밭 휴식 | 내 계정 |
+
+`Mascot` 컴포넌트(`src/components/Mascot.tsx`)로 불러 쓰며, 새 포즈를 추가하려면 `scripts/cut-mascot.mjs`의 크롭 좌표와 `Mascot.tsx`의 크기 표에 함께 넣으면 됩니다.
+
 ## 기술 스택
 
 - **Framework:** Next.js 15 (App Router) · React 19 · TypeScript
-- **Styling:** Tailwind CSS 4 (모바일 우선)
+- **Styling:** Tailwind CSS 4 · 공용 스타일 `src/app/ui.css` · 디자인 토큰 `src/app/tokens.css` (모바일 우선)
+- **Font:** SUIT Variable (CDN)
 - **DB:** MySQL 8 (mysql2) · 스키마 `db/schema.sql`
 - **Auth:** scrypt 비밀번호 해시 · DB 세션(토큰 SHA-256 저장) · httpOnly 쿠키
 - **3D:** Three.js (GLTFLoader + meshopt, OrbitControls)
@@ -172,13 +208,14 @@ npx @gltf-transform/cli@4.1.1 optimize kspo-dome-raw.glb public/models/kspo-dome
 ```
 src/
 ├─ app/
+│  ├─ globals.css · tokens.css · ui.css · base.css  # 디자인 토큰과 공용 스타일
 │  ├─ page.tsx                 # 홈: 공연 목록 + 혼잡도
 │  ├─ events/[id]/page.tsx     # 공연 상세: 번개 찾기 / 열기
 │  ├─ crews/[id]/page.tsx      # 크루룸
 │  ├─ venues/page.tsx          # 공연장 3D 뷰어
 │  ├─ login · signup · account # 로그인 · 회원가입 · 내 계정(내 번개, 차단 관리)
 │  └─ api/                     # auth · shows · crews(+messages) · reports · blocks · prediction · congestion
-├─ components/                 # ShowSearch · CrewFinder · PredictionCard · CrewRoom · CrewChat · ReportDialog · VenueViewer …
+├─ components/                 # Mascot · ShowSearch · CrewFinder · PredictionCard · CrewRoom · CrewChat · ReportDialog · VenueViewer …
 └─ lib/
    ├─ matching.ts              # 매칭 · 입장 시간 검증 · 코스 추천 (순수 함수)
    ├─ congestion.ts            # 혼잡 이력 지수 계산 (순수 함수)
@@ -190,6 +227,7 @@ src/
 db/schema.sql                  # MySQL 스키마
 data/                          # 공공데이터 CSV (UTF-8 변환본)
 public/models/                 # 웹용 압축 3D 모델 (GLB)
+public/mascot/                 # 마스코트 포즈 투명 PNG 7종
 ```
 
 ## 매칭 규칙
