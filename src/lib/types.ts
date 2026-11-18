@@ -1,5 +1,3 @@
-export type GateId = "east2" | "south2" | "north2";
-
 export type VenueId =
   | "kspo-dome"
   | "handball"
@@ -9,8 +7,6 @@ export type VenueId =
   | "88-lawn"
   | "other";
 
-export type DataSource = "api" | "mock";
-
 export interface LatLng {
   lat: number;
   lng: number;
@@ -19,36 +15,63 @@ export interface LatLng {
 export interface Venue extends LatLng {
   id: VenueId;
   name: string;
-  nearestGate: GateId;
-  /** 실감형 콘텐츠(DAE) 파일명. public/models/ 아래에 두면 3D 뷰어가 로드한다. */
-  modelFile?: string;
 }
 
-/** 올림픽공원 대관정보(15015212) 한 건을 정규화한 형태 */
-export interface PerformanceEvent {
+/** 올림픽공원 대관정보 API(api.kcisa.kr meta12/getKSCD0803) 한 건 */
+export interface Show {
   id: string;
   title: string;
+  /** API의 spatial 원문 (예: 체조경기장, 뮤즈라이브) */
+  place: string;
   venueId: VenueId;
   venueName: string;
-  startDate: string; // YYYY-MM-DD
-  endDate: string; // YYYY-MM-DD
-  /** 대관정보에는 시작 시각이 없으므로 추정값 */
-  estimatedStartTime: string; // HH:mm
-  source: DataSource;
 }
 
 export type CongestionLevel = "여유" | "보통" | "혼잡" | "매우혼잡";
+export type ZoneStatus = "원활" | "혼잡" | "만차";
+export type DayType = "weekend" | "weekday";
 
-/** 실시간 주차현황(15168686) 구역별 집계 */
-export interface ParkingStatus {
-  gateId: GateId;
-  name: string;
-  capacity: number;
-  occupied: number;
-  ratio: number; // 0~1
+/** 주차장 혼잡도 정보 CSV 한 행 */
+export interface CongestionRecord {
+  zone: string;
+  status: ZoneStatus;
+  date: string; // YYYY-MM-DD
+  hour: number; // 0~23 (원본 등록시간의 '시'만 유효)
+}
+
+export interface HourlyPoint {
+  hour: number;
+  index: number; // 0~1, 혼잡 이력 지수
   level: CongestionLevel;
-  updatedAt: string; // ISO
-  source: DataSource;
+}
+
+export interface ZoneCongestion {
+  zone: string;
+  index: number;
+  level: CongestionLevel;
+  counts: Record<ZoneStatus, number>;
+}
+
+export interface CongestionSnapshot {
+  dayType: DayType;
+  hour: number;
+  index: number;
+  level: CongestionLevel;
+  zones: ZoneCongestion[];
+  curves: Record<DayType, HourlyPoint[]>;
+  period: { from: string; to: string };
+  total: number;
+}
+
+/** 올림픽공원 공연장 실감형 콘텐츠 CSV를 공연장 단위로 묶은 것 */
+export interface Venue3D {
+  venueId: VenueId;
+  venueName: string;
+  category: string; // 실내 / 실외
+  files: { ext: string; fileName: string }[];
+  homepage: string;
+  /** 웹 뷰어용으로 최적화한 GLB (public/models). 없으면 미리보기 불가 */
+  modelUrl?: string;
 }
 
 export type CrewMode = "walk" | "jog" | "run";
@@ -59,7 +82,6 @@ export interface Course {
   distanceKm: number;
   description: string;
   meetingPoint: LatLng & { name: string };
-  nearGate: GateId;
   path: [number, number][]; // [lat, lng]
   modes: CrewMode[];
 }
@@ -77,11 +99,13 @@ export interface Member {
 
 export interface Crew {
   id: string;
+  /** Show.id */
   eventId: string;
   mode: CrewMode;
   paceMinPerKm: number;
   courseId: string;
   startAt: string; // ISO
+  /** 사용자가 입력한 티켓 기준 공연 시작 시각 */
   eventStartAt: string; // ISO
   capacity: number;
   /** 미성년 보호: true면 같은 연령대(14-19)만 참여 */

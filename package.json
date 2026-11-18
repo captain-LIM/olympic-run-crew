@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "convert:dae": "node --max-old-space-size=8000 scripts/sketchup-dae-to-glb.mjs"
   },
   "dependencies": {
     "fast-xml-parser": "^5.12.1",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@gltf-transform/core": "^4.1.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -26,6 +28,7 @@
     "@types/three": "^0.170.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.29",
+    "saxes": "^6.0.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^3.2.4"

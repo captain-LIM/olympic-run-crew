@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { CrewRoom } from "@/components/CrewRoom";
-import { getEvent } from "@/lib/data/rentals";
+import { getShow } from "@/lib/data/shows";
 import { getCourse } from "@/lib/park";
 import { getCrew } from "@/lib/store";
 
@@ -10,7 +10,7 @@ export default async function CrewPage({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const crew = getCrew(id);
   if (!crew) notFound();
-  const [event, course] = [await getEvent(crew.eventId), getCourse(crew.courseId)];
-  if (!event || !course) notFound();
-  return <CrewRoom crewId={crew.id} course={course} event={event} />;
+  const [show, course] = [await getShow(crew.eventId), getCourse(crew.courseId)];
+  if (!show || !course) notFound();
+  return <CrewRoom crewId={crew.id} course={course} event={show} />;
 }

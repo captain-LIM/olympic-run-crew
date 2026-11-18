@@ -6,7 +6,7 @@ import { MODE_LABEL } from "@/lib/matching";
 import { distanceKm } from "@/lib/park";
 import { getMemberId, setMemberId, unlockVenue } from "@/lib/profile";
 import { formatKstTime } from "@/lib/time";
-import type { Course, Crew, Member, PerformanceEvent } from "@/lib/types";
+import type { Course, Crew, Member, Show } from "@/lib/types";
 import { CourseMap } from "./CourseMap";
 
 type PublicMember = Omit<Member, "id"> & { id?: string; isMe: boolean };
@@ -30,7 +30,7 @@ function fmtCountdown(ms: number) {
   return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분 ${String(s).padStart(2, "0")}초`;
 }
 
-export function CrewRoom({ crewId, course, event }: { crewId: string; course: Course; event: PerformanceEvent }) {
+export function CrewRoom({ crewId, course, event }: { crewId: string; course: Course; event: Show }) {
   const [crew, setCrew] = useState<PublicCrew | null>(null);
   const [me, setMe] = useState<string | undefined>();
   const [msg, setMsg] = useState<string | null>(null);

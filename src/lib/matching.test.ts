@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { canJoin, findMatches, levelFromRatio, recommendCourses, validateTiming } from "./matching";
+import { levelFromIndex } from "./congestion";
+import { canJoin, findMatches, recommendCourses, validateTiming } from "./matching";
 import { COURSES, getCourse } from "./park";
-import type { Crew, ParkingStatus } from "./types";
+import type { Crew } from "./types";
 
 const eventStart = new Date("2026-11-21T19:00:00+09:00");
 const now = new Date("2026-11-21T16:00:00+09:00");
@@ -58,7 +59,12 @@ describe("canJoin", () => {
 });
 
 describe("findMatches", () => {
-  const req = { eventId: "e1", mode: "walk" as const, pace: 12, startAt: new Date("2026-11-21T17:35:00+09:00"), ageGroup: "20s" as const };
+  const req = { eventId: "e1", eventStartAt: eventStart, mode: "walk" as const, pace: 12, startAt: new Date("2026-11-21T17:35:00+09:00"), ageGroup: "20s" as const };
+
+  it("requires the same show date (같은 공연, 다른 날짜는 다른 방)", () => {
+    const otherDay = crew({ eventStartAt: "2026-11-22T19:00:00+09:00", startAt: "2026-11-21T17:30:00+09:00" });
+    expect(findMatches([otherDay], req, now)).toHaveLength(0);
+  });
 
   it("matches same event, mode, time window and pace", () => {
     expect(findMatches([crew()], req, now)).toHaveLength(1);
@@ -82,24 +88,26 @@ describe("findMatches", () => {
 });
 
 describe("recommendCourses", () => {
-  const status = (gateId: ParkingStatus["gateId"], ratio: number): ParkingStatus => ({
-    gateId, name: gateId, capacity: 100, occupied: ratio * 100, ratio, level: levelFromRatio(ratio), updatedAt: now.toISOString(), source: "mock",
-  });
-
   it("only returns courses supporting the mode", () => {
-    const recs = recommendCourses(COURSES, "run", "kspo-dome", []);
+    const recs = recommendCourses(COURSES, "run", "kspo-dome", "여유");
     expect(recs.every((r) => r.course.modes.includes("run"))).toBe(true);
   });
 
-  it("pushes courses near congested gates down", () => {
-    const calm = recommendCourses(COURSES, "walk", "88-lawn", [status("north2", 0.2)]);
-    const busy = recommendCourses(COURSES, "walk", "88-lawn", [status("north2", 0.95)]);
-    expect(busy[0].score).toBeGreaterThan(calm[0].score);
+  it("prefers the closest meeting point when calm", () => {
+    const recs = recommendCourses(COURSES, "walk", "88-lawn", "여유");
+    expect(recs[0].course.id).toBe("peace-gate"); // 88잔디마당 바로 앞 집결
+    expect(recs.some((r) => r.crowded)).toBe(false);
+  });
+
+  it("disperses away from the venue when congested", () => {
+    const recs = recommendCourses(COURSES, "walk", "88-lawn", "매우혼잡");
+    expect(recs[0].course.id).not.toBe("peace-gate");
+    expect(recs.find((r) => r.course.id === "peace-gate")?.crowded).toBe(true);
   });
 });
 
-describe("levelFromRatio", () => {
+describe("levelFromIndex", () => {
   it("maps thresholds", () => {
-    expect([0.1, 0.6, 0.8, 0.95].map(levelFromRatio)).toEqual(["여유", "보통", "혼잡", "매우혼잡"]);
+    expect([0.1, 0.3, 0.6, 0.9].map(levelFromIndex)).toEqual(["여유", "보통", "혼잡", "매우혼잡"]);
   });
 });

@@ -75,22 +75,3 @@ export function leaveCrew(crewId: string, memberId: string): Crew | undefined {
   if (crew.members.length === 0) crews.delete(crewId);
   return crew;
 }
-
-/** 데모용 시드: 목 공연에 대해 미리 열린 번개 몇 개 */
-export function seedIfEmpty(events: { id: string; startDate: string; estimatedStartTime: string }[]) {
-  if (crews.size > 0) return;
-  const seeds: [CrewMode, number, string, number, string, AgeGroup][] = [
-    [  "walk", 12, "lake-loop", 75, "굿즈산 사람", "20s"],
-    [  "jog", 7.5, "mongchon-fortress", 95, "아침런", "30s"],
-    [  "walk", 12, "peace-gate", 80, "응원봉", "14-19"],
-  ];
-  for (const ev of events.slice(0, 2)) {
-    const eventStartAt = new Date(`${ev.startDate}T${ev.estimatedStartTime}:00+09:00`);
-    if (eventStartAt.getTime() < Date.now()) continue;
-    for (const [mode, pace, courseId, before, nickname, ageGroup] of seeds) {
-      const startAt = new Date(eventStartAt.getTime() - before * 60_000);
-      if (startAt.getTime() < Date.now()) continue;
-      createCrew({ eventId: ev.id, mode, paceMinPerKm: pace, courseId, startAt, eventStartAt, capacity: 6, host: { nickname, ageGroup } });
-    }
-  }
-}

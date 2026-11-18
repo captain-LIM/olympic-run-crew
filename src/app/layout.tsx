@@ -24,7 +24,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         </header>
         <main className="mx-auto max-w-xl px-4 py-5">{children}</main>
         <footer className="mx-auto max-w-xl px-4 pb-8 text-center text-xs text-slate-400">
-          데이터: 한국체육산업개발(주) 올림픽공원 대관정보 · 실시간 주차현황 · 공연장 실감형 콘텐츠 (공공데이터포털)
+          데이터: 한국체육산업개발(주) 올림픽공원 대관정보 · 주차장 혼잡도 정보 · 올림픽공원 공연장 실감형 콘텐츠 (공공데이터포털)
         </footer>
       </body>
     </html>

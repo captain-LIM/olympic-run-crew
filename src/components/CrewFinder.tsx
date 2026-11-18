@@ -2,31 +2,41 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { dayTypeOf, indexAt, levelFromIndex } from "@/lib/congestion";
 import { DEFAULT_PACE, MODE_LABEL, recommendCourses, validateTiming } from "@/lib/matching";
-import { COURSES } from "@/lib/park";
+import { COURSES, DEFAULT_SHOW_TIME } from "@/lib/park";
 import { loadProfile, saveProfile, setMemberId, type Profile } from "@/lib/profile";
-import { formatKstTime, fromKstLocalInput, toKstLocalInput } from "@/lib/time";
-import type { AgeGroup, Crew, CrewMode, ParkingStatus, PerformanceEvent } from "@/lib/types";
+import { formatKstTime, fromKstLocalInput, kstDateString, kstHourFraction, toKstLocalInput } from "@/lib/time";
+import type { AgeGroup, Crew, CrewMode, DayType, HourlyPoint, Show } from "@/lib/types";
+import { LEVEL_STYLE } from "./CongestionPanel";
 import { CourseMap } from "./CourseMap";
-import { LEVEL_STYLE } from "./ParkingPanel";
 
 const AGE_LABEL: Record<AgeGroup, string> = { "14-19": "10대(14~19)", "20s": "20대", "30s": "30대", "40+": "40대 이상" };
+const DAY_LABEL = { weekend: "주말", weekday: "평일" } as const;
 
-export function CrewFinder({ event, parking, initialCrews }: { event: PerformanceEvent; parking: ParkingStatus[]; initialCrews: Crew[] }) {
+function defaultShowTime(show: Show): string {
+  const time = DEFAULT_SHOW_TIME[show.venueId];
+  const today = fromKstLocalInput(`${kstDateString()}T${time}`);
+  const d = today.getTime() - Date.now() > 3 * 3600_000 ? today : fromKstLocalInput(`${kstDateString(new Date(), 1)}T${time}`);
+  return toKstLocalInput(d);
+}
+
+function defaultStart(showAt: string): string {
+  const d = new Date(Math.max(fromKstLocalInput(showAt).getTime() - 80 * 60_000, Date.now() + 10 * 60_000));
+  d.setMinutes(Math.ceil(d.getMinutes() / 5) * 5, 0, 0);
+  return toKstLocalInput(d);
+}
+
+export function CrewFinder({ show, curves }: { show: Show; curves: Record<DayType, HourlyPoint[]> }) {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [nickname, setNickname] = useState("");
   const [ageGroup, setAgeGroup] = useState<AgeGroup | "">("");
 
-  const defaultShow = useMemo(() => fromKstLocalInput(`${event.startDate}T${event.estimatedStartTime}`), [event]);
-  const [showAt, setShowAt] = useState(toKstLocalInput(defaultShow));
+  const [showAt, setShowAt] = useState(() => defaultShowTime(show));
+  const [startAt, setStartAt] = useState(() => defaultStart(showAt));
   const [mode, setMode] = useState<CrewMode>("walk");
   const [pace, setPace] = useState(DEFAULT_PACE.walk);
-  const [startAt, setStartAt] = useState(() => {
-    const d = new Date(Math.max(defaultShow.getTime() - 80 * 60_000, Date.now() + 10 * 60_000));
-    d.setMinutes(Math.ceil(d.getMinutes() / 5) * 5, 0, 0);
-    return toKstLocalInput(d);
-  });
   const [capacity, setCapacity] = useState(6);
   const [matches, setMatches] = useState<Crew[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,16 +44,20 @@ export function CrewFinder({ event, parking, initialCrews }: { event: Performanc
 
   useEffect(() => setProfile(loadProfile()), []);
 
-  const recs = useMemo(() => recommendCourses(COURSES, mode, event.venueId, parking), [mode, event.venueId, parking]);
+  // 출발 시간대의 혼잡 이력 → 코스 분산 추천
+  const startDate = fromKstLocalInput(startAt);
+  const dayType = dayTypeOf(kstDateString(startDate));
+  const startHour = Math.floor(kstHourFraction(startDate));
+  const level = levelFromIndex(indexAt(curves, dayType, startHour));
+
+  const recs = useMemo(() => recommendCourses(COURSES, mode, show.venueId, level), [mode, show.venueId, level]);
   const [courseId, setCourseId] = useState<string>(recs[0]?.course.id ?? "");
   useEffect(() => {
     if (!recs.some((r) => r.course.id === courseId)) setCourseId(recs[0]?.course.id ?? "");
   }, [recs, courseId]);
   const course = COURSES.find((c) => c.id === courseId);
 
-  const timing = course
-    ? validateTiming({ startAt: fromKstLocalInput(startAt), eventStartAt: fromKstLocalInput(showAt), course, pace, venueId: event.venueId })
-    : null;
+  const timing = course ? validateTiming({ startAt: startDate, eventStartAt: fromKstLocalInput(showAt), course, pace, venueId: show.venueId }) : null;
 
   function selectMode(m: CrewMode) {
     setMode(m);
@@ -54,7 +68,10 @@ export function CrewFinder({ event, parking, initialCrews }: { event: Performanc
   async function search() {
     if (!profile) return;
     setError(null);
-    const qs = new URLSearchParams({ eventId: event.id, mode, pace: String(pace), startAt: fromKstLocalInput(startAt).toISOString(), ageGroup: profile.ageGroup });
+    const qs = new URLSearchParams({
+      eventId: show.id, mode, pace: String(pace), ageGroup: profile.ageGroup,
+      startAt: startDate.toISOString(), eventStartAt: fromKstLocalInput(showAt).toISOString(),
+    });
     const res = await fetch(`/api/crews?${qs}`);
     setMatches((await res.json()).crews);
   }
@@ -79,8 +96,8 @@ export function CrewFinder({ event, parking, initialCrews }: { event: Performanc
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        eventId: event.id, mode, paceMinPerKm: pace, courseId, capacity,
-        startAt: fromKstLocalInput(startAt).toISOString(),
+        eventId: show.id, mode, paceMinPerKm: pace, courseId, capacity,
+        startAt: startDate.toISOString(),
         eventStartAt: fromKstLocalInput(showAt).toISOString(),
         host: profile,
       }),
@@ -122,11 +139,20 @@ export function CrewFinder({ event, parking, initialCrews }: { event: Performanc
 
   return (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+      <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold">번개 조건</h2>
+          <h2 className="font-semibold">내 티켓 정보</h2>
           <span className="text-xs text-slate-500">{profile.nickname} · {AGE_LABEL[profile.ageGroup]}</span>
         </div>
+        <label className="block text-sm">
+          공연 날짜·시작 시각
+          <input type="datetime-local" value={showAt} onChange={(e) => { setShowAt(e.target.value); setStartAt(defaultStart(e.target.value)); setMatches(null); }} className="mt-1 w-full rounded-lg border px-3 py-2" />
+          <span className="text-xs text-slate-500">같은 공연·같은 날짜를 입력한 사람끼리 매칭돼요.</span>
+        </label>
+      </section>
+
+      <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
+        <h2 className="font-semibold">번개 조건</h2>
         <div className="grid grid-cols-3 gap-2">
           {(Object.keys(MODE_LABEL) as CrewMode[]).map((m) => (
             <button key={m} onClick={() => selectMode(m)} className={`rounded-xl border py-2 text-sm font-medium ${mode === m ? "border-violet-600 bg-violet-50 text-violet-700" : "border-slate-200"}`}>
@@ -139,21 +165,20 @@ export function CrewFinder({ event, parking, initialCrews }: { event: Performanc
           <input type="number" step={0.5} min={3} max={20} value={pace} onChange={(e) => setPace(Number(e.target.value))} className="mt-1 w-full rounded-lg border px-3 py-2" />
         </label>
         <label className="block text-sm">
-          공연 시작 시각
-          <input type="datetime-local" value={showAt} onChange={(e) => setShowAt(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" />
-          <span className="text-xs text-slate-500">대관정보에는 시작 시각이 없어 추정값입니다. 티켓 시간으로 수정하세요.</span>
-        </label>
-        <label className="block text-sm">
           희망 출발 시각
           <input type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" />
         </label>
+        <p className="flex items-center gap-2 text-sm">
+          <span className="text-slate-600">{DAY_LABEL[dayType]} {startHour}시 주차 혼잡 이력</span>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${LEVEL_STYLE[level]}`}>{level}</span>
+        </p>
         <button onClick={search} className="w-full rounded-xl bg-slate-900 py-2.5 font-semibold text-white">같은 공연 크루 찾기</button>
       </section>
 
       {matches && (
         <section className="rounded-2xl border border-slate-200 bg-white p-4">
           <h2 className="font-semibold">매칭된 번개 {matches.length}개</h2>
-          {matches.length === 0 && <p className="mt-2 text-sm text-slate-500">조건에 맞는 번개가 없어요. 아래에서 새로 열어보세요!</p>}
+          {matches.length === 0 && <p className="mt-2 text-sm text-slate-500">조건에 맞는 번개가 없어요. 아래에서 첫 번개를 열어보세요!</p>}
           <ul className="mt-2 divide-y">
             {matches.map((c) => (
               <li key={c.id} className="flex items-center justify-between py-3">
@@ -168,9 +193,13 @@ export function CrewFinder({ event, parking, initialCrews }: { event: Performanc
         </section>
       )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+      <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
         <h2 className="font-semibold">새 번개 열기</h2>
-        <p className="text-xs text-slate-500">주차 혼잡도가 낮은 구역 근처 집결지를 우선 추천합니다.</p>
+        <p className="text-xs text-slate-500">
+          {level === "혼잡" || level === "매우혼잡"
+            ? "출발 시간대가 붐비는 편이라 공연장에서 조금 떨어진 집결지를 우선 추천해요."
+            : "출발 시간대가 여유로워 공연장과 가까운 코스를 우선 추천해요."}
+        </p>
         <ul className="space-y-2">
           {recs.map((r, i) => (
             <li key={r.course.id}>
@@ -183,12 +212,12 @@ export function CrewFinder({ event, parking, initialCrews }: { event: Performanc
                   </p>
                   <p className="text-xs text-slate-500">{r.course.description} · 공연장까지 도보 {r.walkToVenueMin}분</p>
                 </div>
-                {r.gateLevel !== "알수없음" && <span className={`rounded-full px-2 py-0.5 text-xs ${LEVEL_STYLE[r.gateLevel]}`}>주변 {r.gateLevel}</span>}
+                {r.crowded && <span className="shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-800">공연장 인파</span>}
               </label>
             </li>
           ))}
         </ul>
-        {course && <CourseMap course={course} venueId={event.venueId} parking={parking} />}
+        {course && <CourseMap course={course} venueId={show.venueId} />}
         <label className="block text-sm">
           정원
           <select value={capacity} onChange={(e) => setCapacity(Number(e.target.value))} className="mt-1 w-full rounded-lg border px-3 py-2">
@@ -206,10 +235,6 @@ export function CrewFinder({ event, parking, initialCrews }: { event: Performanc
       </section>
 
       {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
-
-      {initialCrews.length > 0 && !matches && (
-        <p className="text-center text-sm text-slate-500">이 공연에 열린 번개 {initialCrews.length}개 · 조건을 입력하고 찾아보세요</p>
-      )}
     </div>
   );
 }
