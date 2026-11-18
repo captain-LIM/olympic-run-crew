@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BlockList } from "@/components/BlockList";
+import { Mascot } from "@/components/Mascot";
 import { currentUser } from "@/lib/auth";
 import { getShows } from "@/lib/data/shows";
 import { query } from "@/lib/db";
@@ -32,23 +33,36 @@ export default async function AccountPage() {
   const title = new Map(shows.map((s) => [s.id, s.title]));
 
   return (
-    <div className="space-y-4">
-      <section>
-        <h1 className="text-2xl font-extrabold">{user.nickname}</h1>
-        <p className="text-sm text-slate-500">{user.email} · {AGE_LABEL[user.ageGroup]}</p>
+    <div className="stack">
+      <section className="band-sky flex items-end justify-between gap-6">
+        <div className="min-w-0">
+          <h1 className="t-page">{user.nickname}</h1>
+          <p className="meta mt-4 !text-ink-2">
+            <span>{user.email}</span>
+            <span>{AGE_LABEL[user.ageGroup]}</span>
+          </p>
+        </div>
+        <Mascot pose="rest" priority sizes="260px" className="hidden w-44 shrink-0 sm:block lg:w-56" />
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h2 className="font-semibold">내 번개</h2>
+      <div className="grid gap-x-[var(--gap-columns)] gap-y-8 lg:grid-cols-12 lg:items-start">
+      <section className="cell lg:col-span-7">
+        <h2 className="t-cell">내 번개</h2>
         {myCrews.length === 0 ? (
-          <p className="mt-1 text-sm text-slate-500">아직 참여한 번개가 없어요.</p>
+          <p className="mt-3 text-sm muted">아직 참여한 번개가 없어요.</p>
         ) : (
-          <ul className="mt-2 divide-y">
-            {myCrews.map((c) => (
+          <ul className="rows mt-4">
+            {myCrews.map((c, i) => (
               <li key={c.id}>
-                <Link href={`/crews/${c.id}`} className="block py-2">
-                  <p className="truncate font-medium">{title.get(c.event_id) ?? "공연"}</p>
-                  <p className="text-xs text-slate-500">{formatKstDate(kstDateString(c.event_start_at))} · {formatKstTime(c.start_at)} 출발</p>
+                <Link href={`/crews/${c.id}`} className="row-link">
+                  <span className="num-dot" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span>
+                  <div className="min-w-0">
+                  <p className="row-title">{title.get(c.event_id) ?? "공연"}</p>
+                  <p className="meta mt-1">
+                    <span>{formatKstDate(kstDateString(c.event_start_at))}</span>
+                    <span>{formatKstTime(c.start_at)} 출발</span>
+                  </p>
+                  </div>
                 </Link>
               </li>
             ))}
@@ -56,17 +70,20 @@ export default async function AccountPage() {
         )}
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h2 className="font-semibold">해금한 무대 시점</h2>
-        <p className="mt-1 text-sm">
+      <div className="stack lg:col-span-5">
+      <section className="cell cell--well">
+        <h2 className="t-cell">해금한 무대 시점</h2>
+        <p className="mt-3 text-sm">
           {unlocked.length ? unlocked.map((v) => VENUES[v as VenueId]?.name ?? v).join(", ") : "크루를 완주하면 공연장 3D '무대 시점'이 열려요."}
         </p>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h2 className="mb-1 font-semibold">차단한 사용자</h2>
+      <section className="cell">
+        <h2 className="t-cell mb-3">차단한 사용자</h2>
         <BlockList initial={blocks} />
       </section>
+      </div>
+      </div>
     </div>
   );
 }

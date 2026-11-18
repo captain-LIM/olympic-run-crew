@@ -9,26 +9,35 @@ export const metadata: Metadata = {
   description: "같은 공연을 보러 온 사람들과 공연 전 올림픽공원을 함께 걷고 달리는 번개 매칭 서비스",
 };
 
-export const viewport: Viewport = { themeColor: "#7c3aed", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { themeColor: "#2f6fd8", width: "device-width", initialScale: 1 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const user = await currentUser().catch(() => null);
   return (
     <html lang="ko">
-      <body className="antialiased">
-        <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
-          <nav className="mx-auto flex max-w-xl items-center justify-between px-4 py-3">
-            <Link href="/" className="font-extrabold text-violet-700">🎤🏃 공연 전 한 바퀴</Link>
-            <div className="flex items-center gap-3 text-sm">
+      <head>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.css" />
+      </head>
+      <body className="flex min-h-dvh flex-col">
+        <a href="#main" className="skip">본문으로 건너뛰기</a>
+        <header className="navbar">
+          <nav className="container flex items-center justify-between gap-4 py-3" aria-label="주요 메뉴">
+            <Link href="/" className="brand">공연 전 한 바퀴</Link>
+            <div className="flex items-center gap-5">
               <Link href="/">공연</Link>
               <Link href="/venues">3D</Link>
               <UserMenu nickname={user?.nickname ?? null} />
             </div>
           </nav>
         </header>
-        <main className="mx-auto max-w-xl px-4 py-5">{children}</main>
-        <footer className="mx-auto max-w-xl px-4 pb-8 text-center text-xs text-slate-400">
-          데이터: 한국체육산업개발(주) 올림픽공원 대관정보 · 주차장 혼잡도 정보 · 올림픽공원 공연장 실감형 콘텐츠 (공공데이터포털)
+        <main id="main" className="container flex-1 py-10 sm:py-14">{children}</main>
+        <footer className="mast">
+          <div className="container py-12">
+            <p className="wordmark text-2xl font-extrabold">공연 전 한 바퀴</p>
+            <p className="mt-4 max-w-[60ch] text-sm">
+              데이터: 한국체육산업개발(주) 올림픽공원 대관정보, 주차장 혼잡도 정보, 올림픽공원 공연장 실감형 콘텐츠 (공공데이터포털)
+            </p>
+          </div>
         </footer>
       </body>
     </html>

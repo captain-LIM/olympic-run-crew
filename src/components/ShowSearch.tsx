@@ -32,35 +32,32 @@ export function ShowSearch({ shows, openCounts }: { shows: Show[]; openCounts: R
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="보러 가는 공연 이름을 검색하세요"
-        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3"
+        className="field !mt-0"
         aria-label="공연 검색"
       />
-      <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+      <div className="chip-row mt-3" role="group" aria-label="공연장 필터">
         {FILTERS.map((f, i) => (
-          <button key={f.label} onClick={() => setFilter(i)} className={`shrink-0 rounded-full border px-3 py-1 text-sm ${i === filter ? "border-violet-600 bg-violet-600 text-white" : "border-slate-300 bg-white"}`}>
+          <button key={f.label} onClick={() => setFilter(i)} aria-pressed={i === filter} className="chip">
             {f.label}
           </button>
         ))}
       </div>
-      <p className="mt-2 text-xs text-slate-500">{results.length}개 공연</p>
-      <ul className="mt-1 space-y-2">
-        {results.slice(0, 20).map((s) => (
+      <p className="small mt-5 mb-2" aria-live="polite">{results.length}개 공연</p>
+      <ul className="rows">
+        {results.slice(0, 20).map((s, i) => (
           <li key={s.id}>
-            <Link href={`/events/${s.id}`} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 transition hover:border-violet-400">
+            <Link href={`/events/${s.id}`} className="row-link">
+              <span className="num-dot" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span>
               <div className="min-w-0">
-                <p className="truncate font-medium">{s.title}</p>
-                <p className="text-xs text-slate-500">{s.place}</p>
+                <p className="row-title">{s.title}</p>
+                <p className="small mt-1">{s.place}</p>
               </div>
-              {openCounts[s.id] ? (
-                <span className="shrink-0 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-bold text-violet-700">번개 {openCounts[s.id]}</span>
-              ) : (
-                <span className="shrink-0 text-slate-300">›</span>
-              )}
+              {openCounts[s.id] ? <span className="tag tag--blue">번개 {openCounts[s.id]}</span> : <span className="small" aria-hidden="true"></span>}
             </Link>
           </li>
         ))}
       </ul>
-      {results.length > 20 &&<p className="mt-2 text-center text-xs text-slate-500">검색어를 입력해 더 좁혀보세요</p>}
+      {results.length > 20 && <p className="small mt-4">검색어를 입력해 더 좁혀보세요</p>}
     </section>
   );
 }

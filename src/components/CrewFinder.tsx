@@ -10,6 +10,7 @@ import { formatKstTime, fromKstLocalInput, kstDateString, toKstLocalInput } from
 import type { AgeGroup, Crew, CrewMode, DayType, HourlyPoint, Show } from "@/lib/types";
 import { LEVEL_STYLE } from "./CongestionPanel";
 import { CourseMap } from "./CourseMap";
+import { Mascot } from "./Mascot";
 import { PredictionCard } from "./PredictionCard";
 
 const AGE_LABEL: Record<AgeGroup, string> = { "14-19": "10대", "20s": "20대", "30s": "30대", "40+": "40대 이상" };
@@ -106,121 +107,133 @@ export function CrewFinder({
   }
 
   return (
-    <div className="space-y-4">
-      <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
-        <h2 className="font-semibold">내 티켓 정보</h2>
-        <label className="block text-sm">
-          공연 날짜·시작 시각
-          <input type="datetime-local" value={showAt} onChange={(e) => { setShowAt(e.target.value); setStartAt(defaultStart(e.target.value)); setMatches(null); }} className="mt-1 w-full rounded-lg border px-3 py-2" />
-          <span className="text-xs text-slate-500">같은 공연·같은 날짜를 입력한 사람끼리 매칭돼요.</span>
-        </label>
-      </section>
-
-      <PredictionCard prediction={prediction} showLabel={showAt.slice(11, 16)} />
-
-      {!user ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 text-center">
-          <p className="font-semibold">번개를 찾거나 열려면 로그인이 필요해요</p>
-          <p className="mt-1 text-sm text-slate-500">크루 채팅과 신고·차단 같은 안전 기능을 위해 계정을 사용해요.</p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <Link href={loginHref} className="rounded-xl bg-violet-600 py-2.5 font-semibold text-white">로그인</Link>
-            <Link href={`/signup?next=${encodeURIComponent(`/events/${show.id}`)}`} className="rounded-xl border border-slate-300 py-2.5 font-semibold">회원가입</Link>
-          </div>
+    <div className="grid gap-x-[var(--gap-columns)] gap-y-8 lg:grid-cols-12 lg:items-start">
+      <div className="stack lg:col-span-7">
+        <section className="cell">
+          <h2 className="t-cell">내 티켓 정보</h2>
+          <label className="mt-4 block">
+            <span className="label">공연 날짜·시작 시각</span>
+            <input type="datetime-local" value={showAt} onChange={(e) => { setShowAt(e.target.value); setStartAt(defaultStart(e.target.value)); setMatches(null); }} className="field" />
+            <span className="small mt-2 block">같은 공연·같은 날짜를 입력한 사람끼리 매칭돼요.</span>
+          </label>
         </section>
-      ) : (
-        <>
-          <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold">번개 조건</h2>
-              <span className="text-xs text-slate-500">{user.nickname} · {AGE_LABEL[user.ageGroup]}</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {(Object.keys(MODE_LABEL) as CrewMode[]).map((m) => (
-                <button key={m} onClick={() => selectMode(m)} className={`rounded-xl border py-2 text-sm font-medium ${mode === m ? "border-violet-600 bg-violet-50 text-violet-700" : "border-slate-200"}`}>
-                  {MODE_LABEL[m]}
-                </button>
-              ))}
-            </div>
-            <label className="block text-sm">
-              페이스 <span className="text-slate-500">(분/km)</span>
-              <input type="number" step={0.5} min={3} max={20} value={pace} onChange={(e) => setPace(Number(e.target.value))} className="mt-1 w-full rounded-lg border px-3 py-2" />
-            </label>
-            <label className="block text-sm">
-              희망 출발 시각
-              <input type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" />
-            </label>
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-slate-600">출발 시각 예측 혼잡</span>
-              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${LEVEL_STYLE[level]}`}>{level}</span>
-              {prediction.walkWindow && (
-                <button onClick={useWalkWindow} className="text-xs font-semibold text-violet-700 underline">추천 시간({prediction.walkWindow.from})으로 맞추기</button>
-              )}
-            </div>
-            <button onClick={search} className="w-full rounded-xl bg-slate-900 py-2.5 font-semibold text-white">같은 공연 크루 찾기</button>
-          </section>
 
-          {matches && (
-            <section className="rounded-2xl border border-slate-200 bg-white p-4">
-              <h2 className="font-semibold">매칭된 번개 {matches.length}개</h2>
-              {matches.length === 0 && <p className="mt-2 text-sm text-slate-500">조건에 맞는 번개가 없어요. 아래에서 첫 번개를 열어보세요!</p>}
-              <ul className="mt-2 divide-y">
-                {matches.map((c) => (
-                  <li key={c.id} className="flex items-center justify-between py-3">
-                    <div>
-                      <p className="font-medium">{formatKstTime(c.startAt)} 출발 · {COURSES.find((x) => x.id === c.courseId)?.name}</p>
-                      <p className="text-xs text-slate-500">{MODE_LABEL[c.mode]} {c.paceMinPerKm}분/km · {c.members.length}/{c.capacity}명</p>
-                    </div>
-                    <button disabled={busy} onClick={() => join(c.id)} className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">참여</button>
+        {!user ? (
+          <section className="cell cell--well flex items-center gap-6">
+            <div className="min-w-0 flex-1">
+              <h2 className="t-cell">번개를 찾거나 열려면 로그인이 필요해요</h2>
+              <p className="mt-2 text-sm">크루 채팅과 신고·차단 같은 안전 기능을 위해 계정을 사용해요.</p>
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <Link href={loginHref} className="btn btn--solid">로그인</Link>
+                <Link href={`/signup?next=${encodeURIComponent(`/events/${show.id}`)}`} className="btn">회원가입</Link>
+              </div>
+            </div>
+            <Mascot pose="phone" sizes="160px" className="hidden w-32 shrink-0 sm:block" />
+          </section>
+        ) : (
+          <>
+            <section className="cell">
+              <div className="cell-head">
+                <h2 className="t-cell">번개 조건</h2>
+                <span className="small">{user.nickname}, {AGE_LABEL[user.ageGroup]}</span>
+              </div>
+              <div className="seg mt-4" role="group" aria-label="활동 종류">
+                {(Object.keys(MODE_LABEL) as CrewMode[]).map((m) => (
+                  <button key={m} onClick={() => selectMode(m)} aria-pressed={mode === m}>
+                    {MODE_LABEL[m]}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="label">페이스 (분/km)</span>
+                  <input type="number" step={0.5} min={3} max={20} value={pace} onChange={(e) => setPace(Number(e.target.value))} className="field" />
+                </label>
+                <label className="block">
+                  <span className="label">희망 출발 시각</span>
+                  <input type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} className="field" />
+                </label>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                <span className="muted">출발 시각 예측 혼잡</span>
+                <span className={`tag ${LEVEL_STYLE[level]}`}>{level}</span>
+                {prediction.walkWindow && (
+                  <button onClick={useWalkWindow} className="btn-text">추천 시간({prediction.walkWindow.from})으로 맞추기</button>
+                )}
+              </div>
+              <button onClick={search} className="btn btn--solid btn--block mt-5">같은 공연 크루 찾기</button>
+            </section>
+
+            {matches && (
+              <section className="cell" aria-live="polite">
+                <h2 className="t-cell">매칭된 번개 {matches.length}개</h2>
+                {matches.length === 0 && <p className="mt-3 text-sm muted">조건에 맞는 번개가 없어요. 아래에서 첫 번개를 열어보세요!</p>}
+                <ul className="rows mt-3">
+                  {matches.map((c) => (
+                    <li key={c.id} className="flex items-center justify-between gap-4 py-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold">{formatKstTime(c.startAt)} 출발, {COURSES.find((x) => x.id === c.courseId)?.name}</p>
+                        <p className="meta mt-1">
+                          <span>{MODE_LABEL[c.mode]} {c.paceMinPerKm}분/km</span>
+                          <span>{c.members.length}/{c.capacity}명</span>
+                        </p>
+                      </div>
+                      <button disabled={busy} onClick={() => join(c.id)} className="btn btn--solid btn--sm">참여</button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            <section className="cell">
+              <h2 className="t-cell">새 번개 열기</h2>
+              <p className="small mt-2">
+                {level === "혼잡" || level === "매우혼잡"
+                  ? "출발 시각이 붐빌 것으로 예상돼 공연장에서 조금 떨어진 집결지를 우선 추천해요."
+                  : "출발 시각이 여유로울 것으로 예상돼 공연장과 가까운 코스를 우선 추천해요."}
+              </p>
+              <ul className="mt-4 space-y-3">
+                {recs.map((r, i) => (
+                  <li key={r.course.id}>
+                    <label className="opt">
+                      <input type="radio" name="course" checked={courseId === r.course.id} onChange={() => setCourseId(r.course.id)} />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold">
+                          {i === 0 && <span className="tag tag--blue mr-2">추천</span>}
+                          {r.course.name} <span className="muted text-sm font-normal">{r.course.distanceKm}km</span>
+                        </p>
+                        <p className="small mt-1">{r.course.description}, 공연장까지 도보 {r.walkToVenueMin}분</p>
+                      </div>
+                      {r.crowded && <span className="tag tag--red shrink-0">공연장 인파</span>}
+                    </label>
                   </li>
                 ))}
               </ul>
+              {course && <div className="mt-4"><CourseMap course={course} venueId={show.venueId} /></div>}
+              <label className="mt-4 block">
+                <span className="label">정원</span>
+                <select value={capacity} onChange={(e) => setCapacity(Number(e.target.value))} className="field">
+                  {[2, 4, 6, 8].map((n) => <option key={n} value={n}>{n}명</option>)}
+                </select>
+              </label>
+              {timing && (
+                <p className={`note mt-4 ${timing.ok ? "" : "note--error"}`}>
+                  {timing.ok
+                    ? `예상 ${timing.durationMin}분 소요, ${formatKstTime(timing.latestStart)}까지 출발하면 입장 30분 전 도착`
+                    : `${timing.reason} (출발 가능: ${formatKstTime(timing.earliestStart)} ~ ${formatKstTime(timing.latestStart)})`}
+                </p>
+              )}
+              <button disabled={busy || !timing?.ok} onClick={create} className="btn btn--solid btn--block mt-5">번개 열기</button>
             </section>
-          )}
+          </>
+        )}
 
-          <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
-            <h2 className="font-semibold">새 번개 열기</h2>
-            <p className="text-xs text-slate-500">
-              {level === "혼잡" || level === "매우혼잡"
-                ? "출발 시각이 붐빌 것으로 예상돼 공연장에서 조금 떨어진 집결지를 우선 추천해요."
-                : "출발 시각이 여유로울 것으로 예상돼 공연장과 가까운 코스를 우선 추천해요."}
-            </p>
-            <ul className="space-y-2">
-              {recs.map((r, i) => (
-                <li key={r.course.id}>
-                  <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 ${courseId === r.course.id ? "border-violet-600 bg-violet-50" : "border-slate-200"}`}>
-                    <input type="radio" name="course" className="mt-1" checked={courseId === r.course.id} onChange={() => setCourseId(r.course.id)} />
-                    <div className="flex-1">
-                      <p className="font-medium">
-                        {i === 0 && <span className="mr-1 rounded bg-violet-600 px-1.5 py-0.5 text-[10px] text-white">추천</span>}
-                        {r.course.name} <span className="text-sm text-slate-500">{r.course.distanceKm}km</span>
-                      </p>
-                      <p className="text-xs text-slate-500">{r.course.description} · 공연장까지 도보 {r.walkToVenueMin}분</p>
-                    </div>
-                    {r.crowded && <span className="shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-800">공연장 인파</span>}
-                  </label>
-                </li>
-              ))}
-            </ul>
-            {course && <CourseMap course={course} venueId={show.venueId} />}
-            <label className="block text-sm">
-              정원
-              <select value={capacity} onChange={(e) => setCapacity(Number(e.target.value))} className="mt-1 w-full rounded-lg border px-3 py-2">
-                {[2, 4, 6, 8].map((n) => <option key={n} value={n}>{n}명</option>)}
-              </select>
-            </label>
-            {timing && (
-              <p className={`rounded-lg p-2 text-sm ${timing.ok ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800"}`}>
-                {timing.ok
-                  ? `예상 ${timing.durationMin}분 소요 · ${formatKstTime(timing.latestStart)}까지 출발하면 입장 30분 전 도착`
-                  : `${timing.reason} (출발 가능: ${formatKstTime(timing.earliestStart)} ~ ${formatKstTime(timing.latestStart)})`}
-              </p>
-            )}
-            <button disabled={busy || !timing?.ok} onClick={create} className="w-full rounded-xl bg-violet-600 py-2.5 font-semibold text-white disabled:opacity-40">번개 열기</button>
-          </section>
-        </>
-      )}
+        {error && <p role="alert" className="note note--error">{error}</p>}
+      </div>
 
-      {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
+      <div className="lg:sticky lg:top-24 lg:col-span-5">
+        <PredictionCard prediction={prediction} showLabel={showAt.slice(11, 16)} />
+      </div>
     </div>
   );
 }

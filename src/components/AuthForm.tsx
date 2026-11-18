@@ -39,13 +39,13 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: stri
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5">
-      <label className="block text-sm">
-        이메일
-        <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" />
+    <form onSubmit={submit} className="cell stack-sm">
+      <label className="block">
+        <span className="label">이메일</span>
+        <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="field" />
       </label>
-      <label className="block text-sm">
-        비밀번호 {isSignup && <span className="text-xs text-slate-500">(8자 이상, 영문+숫자)</span>}
+      <label className="block">
+        <span className="label">비밀번호 {isSignup && <span className="font-normal">(8자 이상, 영문+숫자)</span>}</span>
         <input
           type="password"
           required
@@ -53,32 +53,32 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: stri
           autoComplete={isSignup ? "new-password" : "current-password"}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-1 w-full rounded-lg border px-3 py-2"
+          className="field"
         />
       </label>
       {isSignup && (
         <>
-          <label className="block text-sm">
-            닉네임 <span className="text-xs text-slate-500">(크루원에게 보이는 이름, 1~12자)</span>
-            <input required maxLength={12} value={nickname} onChange={(e) => setNickname(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" />
+          <label className="block">
+            <span className="label">닉네임 <span className="font-normal">(크루원에게 보이는 이름, 1~12자)</span></span>
+            <input required maxLength={12} value={nickname} onChange={(e) => setNickname(e.target.value)} className="field" />
           </label>
-          <label className="block text-sm">
-            연령대
-            <select required value={ageGroup} onChange={(e) => setAgeGroup(e.target.value as AgeGroup)} className="mt-1 w-full rounded-lg border px-3 py-2">
+          <label className="block">
+            <span className="label">연령대</span>
+            <select required value={ageGroup} onChange={(e) => setAgeGroup(e.target.value as AgeGroup)} className="field">
               <option value="">선택</option>
               {(Object.keys(AGE_LABEL) as AgeGroup[]).map((a) => <option key={a} value={a}>{AGE_LABEL[a]}</option>)}
             </select>
-            <span className="text-xs text-slate-500">만 14세 미만은 가입할 수 없어요. 10대는 10대끼리만 매칭돼요.</span>
+            <span className="small mt-2 block">만 14세 미만은 가입할 수 없어요. 10대는 10대끼리만 매칭돼요.</span>
           </label>
         </>
       )}
-      {error && <p role="alert" className="rounded-lg bg-rose-50 p-2 text-sm text-rose-800">{error}</p>}
-      <button disabled={busy} className="w-full rounded-xl bg-violet-600 py-3 font-semibold text-white disabled:opacity-50">
+      {error && <p role="alert" className="note note--error">{error}</p>}
+      <button disabled={busy} className="btn btn--solid btn--block !mt-6">
         {busy ? "처리 중…" : isSignup ? "가입하기" : "로그인"}
       </button>
-      <p className="text-center text-sm text-slate-600">
+      <p className="pt-2 text-sm">
         {isSignup ? "이미 계정이 있나요? " : "처음이신가요? "}
-        <Link href={`/${isSignup ? "login" : "signup"}${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-semibold text-violet-700 underline">
+        <Link href={`/${isSignup ? "login" : "signup"}${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="lnk font-semibold">
           {isSignup ? "로그인" : "회원가입"}
         </Link>
       </p>

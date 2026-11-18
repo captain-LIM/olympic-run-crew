@@ -9,6 +9,7 @@ import { formatKstTime } from "@/lib/time";
 import type { Course, Crew, Member, Show } from "@/lib/types";
 import { CourseMap } from "./CourseMap";
 import { CrewChat } from "./CrewChat";
+import { Mascot } from "./Mascot";
 import { ReportDialog } from "./ReportDialog";
 
 type CrewView = Omit<Crew, "members"> & {
@@ -95,8 +96,8 @@ export function CrewRoom({ crewId, course, event, user }: { crewId: string; cour
     setMsg(res.ok ? `${target.nickname}님을 차단했어요. 계정 페이지에서 해제할 수 있어요.` : "차단에 실패했어요.");
   }
 
-  if (gone) return <p className="rounded-xl bg-white p-6 text-center">크루가 해산됐어요. <Link className="text-violet-700 underline" href={`/events/${event.id}`}>공연으로 돌아가기</Link></p>;
-  if (!crew) return <p className="p-6 text-center text-slate-500">불러오는 중…</p>;
+  if (gone) return <p className="cell">크루가 해산됐어요. <Link className="lnk" href={`/events/${event.id}`}>공연으로 돌아가기</Link></p>;
+  if (!crew) return <p className="cell muted">불러오는 중…</p>;
 
   const mine = crew.members.find((m) => m.isMe);
   const startMs = new Date(crew.startAt).getTime();
@@ -104,99 +105,116 @@ export function CrewRoom({ crewId, course, event, user }: { crewId: string; cour
   const closed = now > showMs + 3 * 3600_000;
 
   return (
-    <div className="space-y-4">
-      <section className="rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 p-5 text-white">
-        <p className="text-sm opacity-80">{event.title}</p>
-        <h1 className="mt-1 text-xl font-bold">{course.name} · {MODE_LABEL[crew.mode]}</h1>
-        <p className="mt-1 text-sm opacity-90">{formatKstTime(crew.startAt)} 출발 · {crew.paceMinPerKm}분/km · 공연 {formatKstTime(crew.eventStartAt)}</p>
-        <div className="mt-4 grid grid-cols-2 gap-2 text-center">
-          <div className="rounded-xl bg-white/15 p-3">
-            <p className="text-xs opacity-80">출발까지</p>
-            <p className="text-lg font-bold tabular-nums">{fmtCountdown(startMs - now)}</p>
+    <div className="stack">
+      <section className="cell cell--ink relative overflow-hidden">
+        <Mascot pose="run" priority sizes="260px" className="absolute right-4 top-3 hidden w-32 sm:block lg:right-10 lg:w-36" />
+        <p className="text-sm text-rule">{event.title}</p>
+        <h1 className="t-title mt-2 !max-w-none">{course.name}, {MODE_LABEL[crew.mode]}</h1>
+        <p className="meta mt-3 !text-rule">
+          <span>{formatKstTime(crew.startAt)} 출발</span>
+          <span>{crew.paceMinPerKm}분/km</span>
+          <span>공연 {formatKstTime(crew.eventStartAt)}</span>
+        </p>
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-ink-2 p-4">
+            <p className="text-sm text-rule">출발까지</p>
+            <p className="figure-xl mt-2 !text-sky-2">{fmtCountdown(startMs - now)}</p>
           </div>
-          <div className="rounded-xl bg-white/15 p-3">
-            <p className="text-xs opacity-80">공연 시작까지</p>
-            <p className="text-lg font-bold tabular-nums">{fmtCountdown(showMs - now)}</p>
+          <div className="rounded-2xl bg-ink-2 p-4">
+            <p className="text-sm text-rule">공연 시작까지</p>
+            <p className="figure-xl mt-2 !text-sky-2">{fmtCountdown(showMs - now)}</p>
           </div>
         </div>
         {showMs - now < 45 * 60_000 && showMs > now && (
-          <p className="mt-3 rounded-lg bg-amber-300 p-2 text-sm font-semibold text-amber-950">입장 시간이 다가와요! 공연장으로 이동하세요.</p>
+          <p className="note note--warn mt-4 !text-ink font-semibold">입장 시간이 다가와요! 공연장으로 이동하세요.</p>
         )}
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h2 className="mb-2 font-semibold">집결지 · 코스</h2>
-        <CourseMap course={course} venueId={event.venueId} />
-        <p className="mt-2 text-sm">📍 {course.meetingPoint.name} · {course.distanceKm}km</p>
-      </section>
-
-      {!crew.isMember ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 text-center">
-          <p className="font-semibold">크루원 {crew.memberCount}/{crew.capacity}명</p>
-          <p className="mt-1 text-sm text-slate-500">멤버 정보와 채팅은 참여한 사람에게만 보여요.</p>
-          {user ? (
-            <button onClick={join} className="mt-3 w-full rounded-xl bg-violet-600 py-3 font-semibold text-white">이 번개 참여하기</button>
-          ) : (
-            <Link href={`/login?next=${encodeURIComponent(`/crews/${crewId}`)}`} className="mt-3 block rounded-xl bg-violet-600 py-3 font-semibold text-white">로그인하고 참여하기</Link>
-          )}
-          {msg && <p className="mt-2 text-sm text-rose-700">{msg}</p>}
-        </section>
-      ) : (
-        <>
-          <section className="rounded-2xl border border-slate-200 bg-white p-4">
-            <h2 className="font-semibold">
-              크루원 {crew.members.length}/{crew.capacity}
-              {crew.teenOnly && <span className="ml-2 rounded bg-sky-100 px-1.5 py-0.5 text-xs text-sky-800">10대 전용</span>}
-            </h2>
-            <ul className="mt-2 divide-y">
-              {crew.members.map((m) => (
-                <li key={m.userId} className="flex items-center justify-between gap-2 py-2">
-                  <span>
-                    {m.nickname}
-                    {m.isMe && <span className="ml-1 text-xs text-violet-600">(나)</span>}
-                    {m.userId === crew.hostId && <span className="ml-1 text-xs text-slate-500">· 방장</span>}
-                  </span>
-                  <span className="flex items-center gap-3 text-xs">
-                    <span>{m.finished ? "🏁 완주" : m.checkedIn ? "✅ 도착" : "이동 중"}</span>
-                    {!m.isMe && (
-                      <>
-                        <button onClick={() => setReporting({ userId: m.userId, nickname: m.nickname })} className="text-slate-400 underline hover:text-rose-600">신고</button>
-                        <button onClick={() => block({ userId: m.userId, nickname: m.nickname })} className="text-slate-400 underline hover:text-rose-600">차단</button>
-                      </>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
+      <div className="grid gap-x-[var(--gap-columns)] gap-y-8 lg:grid-cols-12 lg:items-start">
+        <div className="stack lg:col-span-6">
+          <section className="cell">
+            <h2 className="t-cell">집결지 · 코스</h2>
+            <div className="mt-4"><CourseMap course={course} venueId={event.venueId} /></div>
+            <p className="meta mt-3">
+              <span>{course.meetingPoint.name}</span>
+              <span>{course.distanceKm}km</span>
+            </p>
           </section>
 
-          {user && <CrewChat crewId={crewId} myUserId={user.id} closed={closed} />}
-
-          {mine && (
-            <section className="space-y-2">
-              {!mine.checkedIn && (
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={checkIn} className="rounded-xl bg-slate-900 py-3 font-semibold text-white">위치로 체크인</button>
-                  <button onClick={() => patch({ checkedIn: true })} className="rounded-xl border border-slate-300 py-3 font-semibold">수동 체크인</button>
-                </div>
+          {!crew.isMember ? (
+            <section className="cell cell--well">
+              <h2 className="t-cell">크루원 {crew.memberCount}/{crew.capacity}명</h2>
+              <p className="small mt-2">멤버 정보와 채팅은 참여한 사람에게만 보여요.</p>
+              {user ? (
+                <button onClick={join} className="btn btn--solid btn--block mt-5">이 번개 참여하기</button>
+              ) : (
+                <Link href={`/login?next=${encodeURIComponent(`/crews/${crewId}`)}`} className="btn btn--solid btn--block mt-5">로그인하고 참여하기</Link>
               )}
-              {mine.checkedIn && !mine.finished && (
-                <button onClick={() => patch({ finished: true })} className="w-full rounded-xl bg-violet-600 py-3 font-semibold text-white">완주했어요 🏁</button>
-              )}
-              {mine.finished && (
-                <Link href={`/venues?v=${event.venueId}`} className="block rounded-2xl border-2 border-violet-600 bg-violet-50 p-4 text-center">
-                  <p className="font-bold text-violet-700">🎁 완주 보상 해금!</p>
-                  <p className="text-sm text-violet-900">{event.venueName} 실감형 3D 무대 시점 보러가기 →</p>
-                </Link>
-              )}
-              {msg && <p className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">{msg}</p>}
-              <button onClick={leave} className="w-full py-2 text-sm text-slate-500 underline">크루 나가기</button>
+              {msg && <p className="note note--error mt-3">{msg}</p>}
+            </section>
+          ) : (
+            <section className="cell">
+              <h2 className="t-cell">
+                크루원 {crew.members.length}/{crew.capacity}
+                {crew.teenOnly && <span className="tag tag--blue ml-3 align-middle">10대 전용</span>}
+              </h2>
+              <ul className="rows mt-4">
+                {crew.members.map((m) => (
+                  <li key={m.userId} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2">
+                    <span className="font-semibold">
+                      {m.nickname}
+                      {m.isMe && <span className="small ml-2">나</span>}
+                      {m.userId === crew.hostId && <span className="small ml-2">방장</span>}
+                    </span>
+                    <span className="flex items-center gap-2 text-sm">
+                      <span className={`tag ${m.finished ? "tag--ink" : m.checkedIn ? "tag--yellow" : ""}`}>{m.finished ? "완주" : m.checkedIn ? "도착" : "이동 중"}</span>
+                      {!m.isMe && (
+                        <>
+                          <button onClick={() => setReporting({ userId: m.userId, nickname: m.nickname })} className="btn-text">신고</button>
+                          <button onClick={() => block({ userId: m.userId, nickname: m.nickname })} className="btn-text">차단</button>
+                        </>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </section>
           )}
-        </>
-      )}
+        </div>
 
-      <p className="text-center text-xs text-slate-500">안전 수칙: 공개된 장소에서만 만나고, 개인 연락처 교환은 자제하세요. 불편한 상황은 신고하거나 공원 안내센터에 알려주세요.</p>
+        {crew.isMember && (
+          <div className="stack lg:col-span-6">
+            {user && <CrewChat crewId={crewId} myUserId={user.id} closed={closed} />}
+
+            {mine && (
+              <section className="stack-sm">
+                {!mine.checkedIn && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <button onClick={checkIn} className="btn btn--solid">위치로 체크인</button>
+                    <button onClick={() => patch({ checkedIn: true })} className="btn">수동 체크인</button>
+                  </div>
+                )}
+                {mine.checkedIn && !mine.finished && (
+                  <button onClick={() => patch({ finished: true })} className="btn btn--solid btn--block">완주했어요</button>
+                )}
+                {mine.finished && (
+                  <Link href={`/venues?v=${event.venueId}`} className="cell cell--well flex items-center justify-between gap-4 no-underline hover:bg-accent-3">
+                    <div>
+                      <p className="font-display text-xl font-bold">완주 보상 해금!</p>
+                      <p className="mt-1 text-sm">{event.venueName} 실감형 3D 무대 시점 보러가기</p>
+                    </div>
+                    <Mascot pose="cheer" sizes="120px" className="w-24 shrink-0" />
+                  </Link>
+                )}
+                {msg && <p className="note note--warn">{msg}</p>}
+                <button onClick={leave} className="btn-text">크루 나가기</button>
+              </section>
+            )}
+          </div>
+        )}
+      </div>
+
+      <p className="small">안전 수칙: 공개된 장소에서만 만나고, 개인 연락처 교환은 자제하세요. 불편한 상황은 신고하거나 공원 안내센터에 알려주세요.</p>
 
       {reporting && <ReportDialog target={reporting} crewId={crewId} onClose={() => setReporting(null)} />}
     </div>

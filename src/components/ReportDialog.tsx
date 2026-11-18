@@ -52,32 +52,32 @@ export function ReportDialog({
   }
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={`${target.nickname} 신고`} className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center" onClick={onClose}>
-      <div className="w-full max-w-md space-y-3 rounded-2xl bg-white p-5" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-bold">{target.nickname} {messageId ? "메시지 " : ""}신고</h2>
+    <div role="dialog" aria-modal="true" aria-label={`${target.nickname} 신고`} className="dialog-scrim" onClick={onClose}>
+      <div className="dialog stack-sm" onClick={(e) => e.stopPropagation()}>
+        <h2 className="t-cell">{target.nickname} {messageId ? "메시지 " : ""}신고</h2>
         {result ? (
           <>
-            <p className="rounded-lg bg-slate-100 p-3 text-sm">{result}</p>
-            <button onClick={onClose} className="w-full rounded-xl bg-slate-900 py-2.5 font-semibold text-white">닫기</button>
+            <p className="note">{result}</p>
+            <button onClick={onClose} className="btn btn--solid btn--block">닫기</button>
           </>
         ) : (
           <>
-            <fieldset className="space-y-1.5">
-              <legend className="mb-1 text-sm font-medium">사유</legend>
+            <fieldset className="space-y-2 border-0 p-0">
+              <legend className="label mb-2">사유</legend>
               {REASONS.map((r) => (
-                <label key={r.value} className="flex items-center gap-2 text-sm">
+                <label key={r.value} className="check">
                   <input type="radio" name="reason" checked={reason === r.value} onChange={() => setReason(r.value)} /> {r.label}
                 </label>
               ))}
             </fieldset>
-            <textarea value={detail} onChange={(e) => setDetail(e.target.value)} maxLength={500} rows={3} placeholder="상황을 간단히 적어주세요 (선택)" className="w-full rounded-lg border px-3 py-2 text-sm" />
-            <label className="flex items-center gap-2 text-sm">
+            <textarea value={detail} onChange={(e) => setDetail(e.target.value)} maxLength={500} rows={3} placeholder="상황을 간단히 적어주세요 (선택)" aria-label="신고 상세" className="field" />
+            <label className="check">
               <input type="checkbox" checked={alsoBlock} onChange={(e) => setAlsoBlock(e.target.checked)} /> 이 사용자 차단하기 (서로의 채팅이 보이지 않고 다시 매칭되지 않아요)
             </label>
-            <p className="text-xs text-slate-500">위급한 상황이면 즉시 112 또는 공원 안내센터에 연락하세요.</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={onClose} className="rounded-xl border border-slate-300 py-2.5 font-semibold">취소</button>
-              <button disabled={busy} onClick={submit} className="rounded-xl bg-rose-600 py-2.5 font-semibold text-white disabled:opacity-50">신고하기</button>
+            <p className="small">위급한 상황이면 즉시 112 또는 공원 안내센터에 연락하세요.</p>
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button onClick={onClose} className="btn">취소</button>
+              <button disabled={busy} onClick={submit} className="btn btn--danger">신고하기</button>
             </div>
           </>
         )}

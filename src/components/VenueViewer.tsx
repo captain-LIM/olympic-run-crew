@@ -87,8 +87,8 @@ export function VenueViewer({ venues, initial }: { venues: Venue3D[]; initial?: 
     const clip = new THREE.Plane(new THREE.Vector3(0, -1, 0), Infinity);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#0f172a");
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x334155, 2));
+    scene.background = new THREE.Color("#17130f");
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x4a4036, 2));
     const sun = new THREE.DirectionalLight(0xffffff, 1.5);
     sun.position.set(1, 2, 1);
     scene.add(sun);
@@ -166,19 +166,19 @@ export function VenueViewer({ venues, initial }: { venues: Venue3D[]; initial?: 
   const isUnlocked = unlocked.includes(venue.venueId);
 
   return (
-    <div className="space-y-3">
-      <div className="flex gap-2 overflow-x-auto pb-1">
+    <div className="stack-sm">
+      <div className="chip-row" role="group" aria-label="공연장 선택">
         {venues.map((v) => (
-          <button key={v.venueId} onClick={() => setVenueId(v.venueId)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm ${v.venueId === venue.venueId ? "border-violet-600 bg-violet-600 text-white" : "border-slate-300 bg-white"}`}>
-            {unlocked.includes(v.venueId) ? "🔓 " : ""}{v.venueName}
+          <button key={v.venueId} onClick={() => setVenueId(v.venueId)} aria-pressed={v.venueId === venue.venueId} className="chip">
+            {v.venueName}{unlocked.includes(v.venueId) ? " (해금)" : ""}
           </button>
         ))}
       </div>
 
-      <div className="relative min-h-48 overflow-hidden rounded-2xl bg-slate-900">
+      <div className="relative min-h-48 overflow-hidden rounded-[20px] bg-ink">
         <div ref={mountRef} className="w-full [&>canvas]:block [&>canvas]:w-full" />
         {status !== "ready" && (
-          <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-slate-200">
+          <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-paper">
             {status === "loading" && `3D 모델 불러오는 중… ${progress}%`}
             {status === "error" && "모델을 불러오지 못했어요. 잠시 후 다시 시도해 주세요."}
             {status === "idle" && (
@@ -195,35 +195,35 @@ export function VenueViewer({ venues, initial }: { venues: Venue3D[]; initial?: 
         <button
           onClick={() => setCut(!cutaway)}
           disabled={status !== "ready"}
-          className="w-full rounded-xl border border-slate-300 bg-white py-3 font-semibold disabled:opacity-40"
+          className="btn btn--block"
         >
-          {cutaway ? "🏟️ 외관 보기" : "🔍 지붕 열고 내부 보기"}
+          {cutaway ? "외관 보기" : "지붕 열고 내부 보기"}
         </button>
       )}
       {venue.modelUrl && (
         <button
           onClick={stageView}
           disabled={!isUnlocked || status !== "ready"}
-          className="w-full rounded-xl bg-violet-600 py-3 font-semibold text-white disabled:bg-slate-300 disabled:text-slate-600"
+          className="btn btn--solid btn--block"
         >
-          {isUnlocked ? "🎤 객석에서 무대 바라보기" : "🔒 이 공연장 크루를 완주하면 '무대 시점'이 열려요"}
+          {isUnlocked ? "객석에서 무대 바라보기" : "완주하면 '무대 시점'이 열려요"}
         </button>
       )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h2 className="text-sm font-semibold">원본 실감형 콘텐츠 ({venue.category})</h2>
-        <ul className="mt-2 flex flex-wrap gap-2">
+      <section className="cell">
+        <h2 className="t-cell">원본 실감형 콘텐츠 ({venue.category})</h2>
+        <ul className="mt-4 flex flex-wrap gap-2">
           {venue.files.map((f) => (
             <li key={f.fileName}>
-              <a href={`${SOURCE_DOWNLOAD_BASE}${f.fileName}`} className="inline-block rounded-lg border border-slate-300 px-2.5 py-1 text-xs hover:border-violet-500" rel="noopener">
-                {f.ext} · {f.fileName}
+              <a href={`${SOURCE_DOWNLOAD_BASE}${f.fileName}`} className="tag hover:bg-ink hover:text-paper-3" rel="noopener">
+                {f.ext} {f.fileName}
               </a>
             </li>
           ))}
         </ul>
-        <a href={venue.homepage} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs text-violet-700 underline">공연장 안내 페이지 →</a>
+        <a href={venue.homepage} target="_blank" rel="noopener noreferrer" className="lnk mt-4 inline-block text-sm">공연장 안내 페이지</a>
       </section>
-      <p className="text-xs text-slate-500">드래그로 회전, 휠·핀치로 확대할 수 있어요. 출처: 한국체육산업개발(주) 올림픽공원 공연장 실감형 콘텐츠 (웹 표시용으로 압축)</p>
+      <p className="small">드래그로 회전, 휠·핀치로 확대할 수 있어요. 출처: 한국체육산업개발(주) 올림픽공원 공연장 실감형 콘텐츠 (웹 표시용으로 압축)</p>
     </div>
   );
 }

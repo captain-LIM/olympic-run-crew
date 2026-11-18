@@ -1,12 +1,12 @@
+/* Hallmark · shape: Settled hero over ruled tables, app screens in a two-column ledger · genre: playful · theme: custom sky-blue sport (white page, royal blue actions, SUIT, after two rejected looks) · redesign: full
+ * hero: Settled (/), ruled head (events) · nav: edge-aligned bar, wordmark and three links · footer: ink mast, wordmark over the data credit · imagery: the user-supplied mascot sheet cut into seven transparent poses (public/mascot), plus the real parking record drawn as a chart · signature: the mascot running the park with the phone in hand, on a sky band · palette: sky
+ * axes: mid/geometric-sans/cool · posture: full-palette · contrast: pass · fold: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 · weakest: S, the hero could be any events list; led with the real parking-load strip instead of a promo block */
+/* Hallmark · reworded "공연 전 대기시간, 같은 공연 보는 사람들과 한 바퀴" to "같은 공연 보는 사람들과 한 바퀴" · 58 caps the hero headline at seven words */
+/* Hallmark · answered F4 · the danger fill appears only inside the report dialog, never beside the page primary */
 @import "tailwindcss";
+@import "./tokens.css";
+@import "./base.css" layer(base);
+@import "./ui.css";
 
-:root {
-  color-scheme: light;
-}
-
-body {
-  background: #f1f5f9;
-  color: #0f172a;
-  font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
-  word-break: keep-all;
-}
+body { word-break: keep-all; }
