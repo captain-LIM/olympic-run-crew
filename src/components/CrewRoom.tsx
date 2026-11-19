@@ -163,7 +163,7 @@ export function CrewRoom({ crewId, course, event, user }: { crewId: string; cour
             <button onClick={() => patch({ finished: true })} className="btn btn--solid btn--block">완주했어요</button>
           )}
           {mine.finished && (
-            <Link href={`/venues?v=${event.venueId}`} className="cell cell--well flex items-center justify-between gap-4 no-underline hover:bg-accent-3">
+            <Link href={`/venues?v=${event.venueId}&stage=1`} className="cell cell--well flex items-center justify-between gap-4 no-underline hover:bg-accent-3">
               <div>
                 <p className="font-display text-xl font-bold">완주 보상 해금!</p>
                 <p className="mt-1 text-sm">{event.venueName} 실감형 3D 무대 시점 보러가기</p>

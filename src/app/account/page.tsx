@@ -73,9 +73,17 @@ export default async function AccountPage() {
       <div className="stack lg:col-span-5">
       <section className="cell cell--well">
         <h2 className="t-cell">해금한 무대 시점</h2>
-        <p className="mt-3 text-sm">
-          {unlocked.length ? unlocked.map((v) => VENUES[v as VenueId]?.name ?? v).join(", ") : "크루를 완주하면 공연장 3D '무대 시점'이 열려요."}
-        </p>
+        {unlocked.length ? (
+          <ul className="chip-row mt-4">
+            {unlocked.map((v) => (
+              <li key={v}>
+                <Link href={`/venues?v=${v}&stage=1`} className="btn btn--sm">{VENUES[v as VenueId]?.name ?? v} 무대 시점 보기</Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm">크루를 완주하면 공연장 3D '무대 시점'이 열려요.</p>
+        )}
       </section>
 
       <section className="cell">

@@ -57,13 +57,14 @@ function focusBox(model: THREE.Object3D, maxSamples = 200_000): THREE.Box3 {
 /**
  * 한국체육산업개발_올림픽공원 공연장 실감형 콘텐츠의 GLB를 meshopt 압축한 모델을 렌더링.
  */
-export function VenueViewer({ venues, initial }: { venues: Venue3D[]; initial?: VenueId }) {
+export function VenueViewer({ venues, initial, autoStage = false }: { venues: Venue3D[]; initial?: VenueId; autoStage?: boolean }) {
   const [venueId, setVenueId] = useState<VenueId>(initial ?? (venues.find((v) => v.modelUrl) ?? venues[0]).venueId);
   const [status, setStatus] = useState<Status>("idle");
   const [progress, setProgress] = useState(0);
   const [unlocked, setUnlocked] = useState<VenueId[]>([]);
   const [cutaway, setCutaway] = useState(false);
-  const [wantLoad, setWantLoad] = useState(false);
+  const [wantLoad, setWantLoad] = useState(autoStage);
+  const stagePending = useRef(autoStage);
   const mountRef = useRef<HTMLDivElement>(null);
   const ctx = useRef<{ camera: THREE.PerspectiveCamera; controls: OrbitControls; box: THREE.Box3; clip: THREE.Plane } | null>(null);
   const venue = venues.find((v) => v.venueId === venueId) ?? venues[0];
@@ -181,11 +182,19 @@ export function VenueViewer({ venues, initial }: { venues: Venue3D[]; initial?: 
 
   const isUnlocked = unlocked.includes(venue.venueId);
 
+  // 해금한 무대 시점 링크로 들어오면 모델이 준비되는 대로 바로 무대 시점으로 보여준다
+  useEffect(() => {
+    if (status === "ready" && stagePending.current && isUnlocked) {
+      stagePending.current = false;
+      stageView();
+    }
+  });
+
   return (
     <div className="stack-sm">
       <div className="chip-row" role="group" aria-label="공연장 선택">
         {venues.map((v) => (
-          <button key={v.venueId} onClick={() => { setVenueId(v.venueId); setWantLoad(false); }} aria-pressed={v.venueId === venue.venueId} className="chip">
+          <button key={v.venueId} onClick={() => { setVenueId(v.venueId); setWantLoad(false); stagePending.current = false; }} aria-pressed={v.venueId === venue.venueId} className="chip">
             {v.venueName}{unlocked.includes(v.venueId) ? " (해금)" : ""}
           </button>
         ))}

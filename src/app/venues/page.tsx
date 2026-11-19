@@ -5,8 +5,8 @@ import type { VenueId } from "@/lib/types";
 
 export const metadata = { title: "공연장 실감형 3D | 공연 전 한 바퀴" };
 
-export default async function VenuesPage({ searchParams }: { searchParams: Promise<{ v?: string }> }) {
-  const { v } = await searchParams;
+export default async function VenuesPage({ searchParams }: { searchParams: Promise<{ v?: string; stage?: string }> }) {
+  const { v, stage } = await searchParams;
   const venues = getVenue3D();
   const initial = venues.some((x) => x.venueId === v) ? (v as VenueId) : undefined;
   return (
@@ -18,7 +18,7 @@ export default async function VenuesPage({ searchParams }: { searchParams: Promi
         </div>
         <Mascot pose="concert" priority sizes="260px" className="hidden w-40 shrink-0 rounded-3xl sm:block lg:w-48" />
       </section>
-      <VenueViewer venues={venues} initial={initial} />
+      <VenueViewer venues={venues} initial={initial} autoStage={stage === "1"} />
     </div>
   );
 }
