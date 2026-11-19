@@ -144,7 +144,8 @@ export function VenueViewer({ venues, initial, autoStage = false }: { venues: Ve
         camera.far = size * 10;
         camera.updateProjectionMatrix();
         controls.target.copy(center);
-        ctx.current = { camera, controls, box, clip };        setStatus("ready");
+        ctx.current = { camera, controls, box, clip };
+        setStatus("ready");
       },
       (e) => !disposed && e.total && setProgress(Math.round((e.loaded / e.total) * 100)),
       () => !disposed && setStatus("error"),
