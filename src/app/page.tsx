@@ -5,7 +5,8 @@ import { ShowSearch } from "@/components/ShowSearch";
 import { getCongestion } from "@/lib/data/congestion";
 import { getShows } from "@/lib/data/shows";
 import { MODE_LABEL } from "@/lib/matching";
-import { listCrews } from "@/lib/store";
+import { currentUser } from "@/lib/auth";
+import { listCrews, myUpcomingCrews } from "@/lib/store";
 import { formatKstDate, formatKstTime, kstDateString } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,10 @@ export default async function Home() {
   const congestion = getCongestion();
   const showById = new Map(shows.map((s) => [s.id, s]));
 
-  const open = (await listCrews(undefined, { upcomingOnly: true })).filter((c) => showById.has(c.eventId));
+  const user = await currentUser().catch(() => null);
+  const mine = user ? (await myUpcomingCrews(user.id)).filter((c) => showById.has(c.eventId)) : [];
+  const mineIds = new Set(mine.map((c) => c.id));
+  const open = (await listCrews(undefined, { upcomingOnly: true })).filter((c) => showById.has(c.eventId) && !mineIds.has(c.id));
   const openCounts: Record<string, number> = {};
   for (const c of open) openCounts[c.eventId] = (openCounts[c.eventId] ?? 0) + 1;
 
@@ -25,7 +29,12 @@ export default async function Home() {
         <div className="relative z-[1] lg:col-span-5">
           <h1 className="t-page">같은 공연 보는 사람들과 한 바퀴</h1>
           <p className="lead mt-6">굿즈 사고 남는 1시간, 올림픽공원을 함께 걷고 달릴 번개 크루를 찾아보세요.</p>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <ol className="mt-6 grid gap-2 text-sm font-semibold sm:grid-cols-3 lg:grid-cols-1">
+            <li className="flex items-center gap-3"><span className="num-dot" aria-hidden="true">1</span>공연 고르기</li>
+            <li className="flex items-center gap-3"><span className="num-dot" aria-hidden="true">2</span>티켓 시간 넣고 번개 찾기·열기</li>
+            <li className="flex items-center gap-3"><span className="num-dot" aria-hidden="true">3</span>공연 전에 같이 걷고 달리기</li>
+          </ol>
+          <div className="mt-6 flex flex-wrap gap-3">
             <a href="#shows" className="btn btn--solid">공연 찾기</a>
           </div>
         </div>
@@ -34,14 +43,27 @@ export default async function Home() {
         </div>
       </section>
 
-      <section aria-label="주차 혼잡 이력" className="band-sky grid items-center gap-x-[var(--gap-columns)] gap-y-8 lg:grid-cols-12">
-        <div className="lg:col-span-7">
-          <CongestionPanel data={congestion} showZones={false} />
-        </div>
-        <div className="flex justify-center lg:col-span-5">
-          <Mascot pose="peek" sizes="(min-width: 1024px) 320px, 60vw" className="w-48 sm:w-64 lg:w-72" />
-        </div>
-      </section>
+      {mine.length > 0 && (
+        <section aria-labelledby="mine-title">
+          <h2 id="mine-title" className="t-title mb-6">내가 참여 중인 번개</h2>
+          <ul className="rows">
+            {mine.map((c) => (
+              <li key={c.id}>
+                <Link href={`/crews/${c.id}`} className="row-link row-link--2">
+                  <div className="min-w-0">
+                    <p className="row-title">{showById.get(c.eventId)!.title}</p>
+                    <p className="meta mt-1">
+                      <span>{formatKstDate(kstDateString(new Date(c.startAt)))}</span>
+                      <span>{formatKstTime(c.startAt)} 출발</span>
+                    </p>
+                  </div>
+                  <span className="tag tag--blue">입장하기</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {open.length > 0 && (
         <section aria-labelledby="open-title">
@@ -51,7 +73,7 @@ export default async function Home() {
               const s = showById.get(c.eventId)!;
               return (
                 <li key={c.id}>
-                  <Link href={`/events/${s.id}`} className="row-link">
+                  <Link href={`/crews/${c.id}`} className="row-link">
                     <span className="num-dot" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span>
                     <div className="min-w-0">
                       <p className="row-title">{s.title}</p>
@@ -79,6 +101,15 @@ export default async function Home() {
           <Mascot pose="run" sizes="200px" className="w-28 shrink-0 sm:w-40" />
         </div>
         <ShowSearch shows={shows} openCounts={openCounts} />
+      </section>
+
+      <section aria-label="주차 혼잡 이력" className="band-sky grid items-center gap-x-[var(--gap-columns)] gap-y-8 lg:grid-cols-12">
+        <div className="lg:col-span-7">
+          <CongestionPanel data={congestion} showZones={false} />
+        </div>
+        <div className="flex justify-center lg:col-span-5">
+          <Mascot pose="peek" sizes="(min-width: 1024px) 320px, 60vw" className="w-48 sm:w-64 lg:w-72" />
+        </div>
       </section>
     </div>
   );

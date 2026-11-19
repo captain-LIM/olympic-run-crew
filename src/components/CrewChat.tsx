@@ -17,6 +17,10 @@ export function CrewChat({ crewId, myUserId, closed }: { crewId: string; myUserI
   const [reporting, setReporting] = useState<ChatMessage | null>(null);
   const lastId = useRef(0);
   const listRef = useRef<HTMLUListElement>(null);
+  const [notify, setNotify] = useState(false);
+  const notifyRef = useRef(false);
+  notifyRef.current = notify;
+  const seeded = useRef(false);
 
   const poll = useCallback(async () => {
     const res = await fetch(`/api/crews/${crewId}/messages?after=${lastId.current}`, { cache: "no-store" });
@@ -24,9 +28,23 @@ export function CrewChat({ crewId, myUserId, closed }: { crewId: string; myUserI
     const { messages: fresh } = (await res.json()) as { messages: ChatMessage[] };
     if (fresh.length) {
       lastId.current = fresh[fresh.length - 1].id;
+      const incoming = fresh.filter((m) => m.userId !== myUserId);
+      if (seeded.current && notifyRef.current && document.hidden && incoming.length && typeof Notification !== "undefined" && Notification.permission === "granted") {
+        const last = incoming[incoming.length - 1];
+        new Notification(`${last.nickname}: 크루 새 메시지`, { body: last.body.slice(0, 80) });
+      }
       setMessages((prev) => [...prev, ...fresh.filter((m) => !prev.some((p) => p.id === m.id))]);
     }
-  }, [crewId]);
+    seeded.current = true;
+  }, [crewId, myUserId]);
+
+  async function toggleNotify() {
+    if (notify) return setNotify(false);
+    if (typeof Notification === "undefined") return setError("이 브라우저는 알림을 지원하지 않아요.");
+    const perm = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+    if (perm === "granted") setNotify(true);
+    else setError("알림 권한이 꺼져 있어요. 브라우저 설정에서 허용해 주세요.");
+  }
 
   useEffect(() => {
     poll();
@@ -56,8 +74,12 @@ export function CrewChat({ crewId, myUserId, closed }: { crewId: string; myUserI
   }
 
   return (
-    <section className="cell">
-      <h2 className="t-cell">크루 채팅</h2>
+    <section id="chat" className="cell scroll-mt-24">
+      <div className="cell-head">
+        <h2 className="t-cell">크루 채팅</h2>
+        <button onClick={toggleNotify} aria-pressed={notify} className="btn-text">{notify ? "알림 끄기" : "새 메시지 알림"}</button>
+      </div>
+      {notify && <p className="small mt-1">이 탭이 열려 있는 동안 새 메시지를 알려드려요.</p>}
       <ul ref={listRef} className="chat-well mt-4 h-72 space-y-3 overflow-y-auto" aria-live="polite">
         {messages.length === 0 && (
           <li className="flex flex-col items-center gap-3 pt-6 text-center text-sm muted">
@@ -74,7 +96,7 @@ export function CrewChat({ crewId, myUserId, closed }: { crewId: string; myUserI
                 <p className={`bubble ${mine ? "bubble--mine" : ""}`}>{m.body}</p>
                 <span className="small">{formatKstTime(m.createdAt)}</span>
                 {!mine && (
-                  <button onClick={() => setReporting(m)} className="btn-text !min-h-0 !p-0 text-xs" aria-label={`${m.nickname}의 메시지 신고`}>
+                  <button onClick={() => setReporting(m)} className="btn-text !min-h-[44px] !min-w-[44px] text-xs" aria-label={`${m.nickname}의 메시지 신고`}>
                     신고
                   </button>
                 )}

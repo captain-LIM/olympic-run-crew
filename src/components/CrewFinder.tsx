@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_PACE, MODE_LABEL, recommendCourses, validateTiming } from "@/lib/matching";
 import { COURSES, DEFAULT_SHOW_TIME } from "@/lib/park";
 import { predictedLevelAt, predictShowDay } from "@/lib/prediction";
@@ -44,8 +44,22 @@ export function CrewFinder({
   const [pace, setPace] = useState(DEFAULT_PACE.walk);
   const [capacity, setCapacity] = useState(6);
   const [matches, setMatches] = useState<Crew[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setErrorRaw] = useState<{ at: "search" | "match" | "create"; msg: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const resultsRef = useRef<HTMLElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const setError = (at: "search" | "match" | "create", msg: string | null) => setErrorRaw(msg ? { at, msg } : null);
+  const errorAt = (at: string) => (error?.at === at ? <p role="alert" className="note note--error mt-4">{error.msg}</p> : null);
+
+  useEffect(() => {
+    if (!confirming) return;
+    confirmRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setConfirming(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirming]);
 
   const showDate = fromKstLocalInput(showAt);
   const startDate = fromKstLocalInput(startAt);
@@ -73,28 +87,37 @@ export function CrewFinder({
   }
 
   async function search() {
-    setError(null);
+    setError("search", null);
+    setSearching(true);
     const qs = new URLSearchParams({ eventId: show.id, mode, pace: String(pace), startAt: startDate.toISOString(), eventStartAt: showDate.toISOString() });
-    const res = await fetch(`/api/crews?${qs}`);
-    const data = await res.json();
-    if (!res.ok) return setError(data.error);
-    setMatches(data.crews);
+    try {
+      const res = await fetch(`/api/crews?${qs}`);
+      const data = await res.json();
+      if (!res.ok) return setError("search", data.error ?? "찾지 못했어요.");
+      setMatches(data.crews);
+      requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" }));
+    } catch {
+      setError("search", "네트워크 오류예요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setSearching(false);
+    }
   }
 
   async function join(crewId: string) {
     setBusy(true);
-    setError(null);
+    setError("match", null);
     const res = await fetch(`/api/crews/${crewId}`, { method: "POST" });
     const data = await res.json();
     setBusy(false);
-    if (!res.ok) return setError(data.error);
+    if (!res.ok) return setError("match", data.error ?? "참여하지 못했어요.");
     router.push(`/crews/${crewId}`);
   }
 
   async function create() {
     if (!course) return;
     setBusy(true);
-    setError(null);
+    setConfirming(false);
+    setError("create", null);
     const res = await fetch("/api/crews", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -102,15 +125,15 @@ export function CrewFinder({
     });
     const data = await res.json();
     setBusy(false);
-    if (!res.ok) return setError(data.error);
+    if (!res.ok) return setError("create", data.error ?? "번개를 열지 못했어요.");
     router.push(`/crews/${data.crew.id}`);
   }
 
   return (
     <div className="grid gap-x-[var(--gap-columns)] gap-y-8 lg:grid-cols-12 lg:items-start">
-      <div className="stack lg:col-span-7">
-        <section className="cell">
+        <section className="cell lg:col-span-7">
           <h2 className="t-cell">내 티켓 정보</h2>
+          <p className="small mt-2">번개는 &lsquo;공연 전 함께 걷거나 달릴 모임&rsquo;이에요. 티켓의 날짜와 시각을 넣으면 그 시간대 혼잡 예측이 아래에 나와요.</p>
           <label className="mt-4 block">
             <span className="label">공연 날짜·시작 시각</span>
             <input type="datetime-local" value={showAt} onChange={(e) => { setShowAt(e.target.value); setStartAt(defaultStart(e.target.value)); setMatches(null); }} className="field" />
@@ -118,6 +141,11 @@ export function CrewFinder({
           </label>
         </section>
 
+      <div className="lg:col-span-5 lg:col-start-8 lg:row-span-2 lg:row-start-1 lg:sticky lg:top-24">
+        <PredictionCard prediction={prediction} showLabel={showAt.slice(11, 16)} />
+      </div>
+
+      <div className="stack lg:col-span-7">
         {!user ? (
           <section className="cell cell--well flex items-center gap-6">
             <div className="min-w-0 flex-1">
@@ -137,7 +165,8 @@ export function CrewFinder({
                 <h2 className="t-cell">번개 조건</h2>
                 <span className="small">{user.nickname}, {AGE_LABEL[user.ageGroup]}</span>
               </div>
-              <div className="seg mt-4" role="group" aria-label="활동 종류">
+              <p className="label mt-4">활동 종류</p>
+              <div className="seg mt-2" role="group" aria-label="활동 종류">
                 {(Object.keys(MODE_LABEL) as CrewMode[]).map((m) => (
                   <button key={m} onClick={() => selectMode(m)} aria-pressed={mode === m}>
                     {MODE_LABEL[m]}
@@ -146,8 +175,9 @@ export function CrewFinder({
               </div>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <label className="block">
-                  <span className="label">페이스 (분/km)</span>
+                  <span className="label">페이스 (1km에 걸리는 분)</span>
                   <input type="number" step={0.5} min={3} max={20} value={pace} onChange={(e) => setPace(Number(e.target.value))} className="field" />
+                  <span className="small mt-2 block">걷기 12, 가볍게 달리기 7.5, 러닝 5.5 정도예요. 비슷한 페이스끼리 묶여요.</span>
                 </label>
                 <label className="block">
                   <span className="label">희망 출발 시각</span>
@@ -161,11 +191,12 @@ export function CrewFinder({
                   <button onClick={useWalkWindow} className="btn-text">추천 시간({prediction.walkWindow.from})으로 맞추기</button>
                 )}
               </div>
-              <button onClick={search} className="btn btn--solid btn--block mt-5">같은 공연 크루 찾기</button>
+              <button onClick={search} disabled={searching} className="btn btn--solid btn--block mt-5">{searching ? "찾는 중…" : "같은 공연 크루 찾기"}</button>
+              {errorAt("search")}
             </section>
 
             {matches && (
-              <section className="cell" aria-live="polite">
+              <section ref={resultsRef} className="cell scroll-mt-24" aria-live="polite">
                 <h2 className="t-cell">매칭된 번개 {matches.length}개</h2>
                 {matches.length === 0 && <p className="mt-3 text-sm muted">조건에 맞는 번개가 없어요. 아래에서 첫 번개를 열어보세요!</p>}
                 <ul className="rows mt-3">
@@ -182,10 +213,11 @@ export function CrewFinder({
                     </li>
                   ))}
                 </ul>
+                {errorAt("match")}
               </section>
             )}
 
-            <section className="cell">
+            <section id="new-crew" className="cell scroll-mt-24">
               <h2 className="t-cell">새 번개 열기</h2>
               <p className="small mt-2">
                 {level === "혼잡" || level === "매우혼잡"
@@ -223,17 +255,31 @@ export function CrewFinder({
                     : `${timing.reason} (출발 가능: ${formatKstTime(timing.earliestStart)} ~ ${formatKstTime(timing.latestStart)})`}
                 </p>
               )}
-              <button disabled={busy || !timing?.ok} onClick={create} className="btn btn--solid btn--block mt-5">번개 열기</button>
+              <button disabled={busy || !timing?.ok} onClick={() => setConfirming(true)} className="btn btn--solid btn--block mt-5">{busy ? "여는 중…" : "번개 열기"}</button>
+              {errorAt("create")}
             </section>
           </>
         )}
 
-        {error && <p role="alert" className="note note--error">{error}</p>}
       </div>
-
-      <div className="lg:sticky lg:top-24 lg:col-span-5">
-        <PredictionCard prediction={prediction} showLabel={showAt.slice(11, 16)} />
-      </div>
+      {confirming && course && timing?.ok && (
+        <div role="dialog" aria-modal="true" aria-label="번개 열기 확인" className="dialog-scrim" onClick={() => setConfirming(false)}>
+          <div className="dialog stack-sm" onClick={(e) => e.stopPropagation()}>
+            <h2 className="t-cell">이 번개를 열까요?</h2>
+            <ul className="rows">
+              <li className="py-2 text-sm">{formatKstTime(startDate.toISOString())} 출발 · {course.name} ({course.distanceKm}km)</li>
+              <li className="py-2 text-sm">{MODE_LABEL[mode]} {pace}분/km · 정원 {capacity}명</li>
+              <li className="py-2 text-sm">공연 {formatKstTime(showDate.toISOString())} 시작</li>
+            </ul>
+            {(level === "혼잡" || level === "매우혼잡") && <p className="note note--warn">출발 시각이 붐빌 것으로 예상돼요. 시간을 바꾸는 것도 방법이에요.</p>}
+            <p className="small">열면 다른 사람에게 목록으로 공개돼요. 나가기 전까지 방장이에요.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => setConfirming(false)} className="btn">돌아가기</button>
+              <button ref={confirmRef} onClick={create} className="btn btn--solid">열기</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

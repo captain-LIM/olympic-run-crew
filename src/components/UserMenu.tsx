@@ -14,8 +14,8 @@ export function UserMenu({ nickname }: { nickname: string | null }) {
     router.refresh();
   }
   return (
-    <span className="flex items-center gap-4">
-      <Link href="/account">{nickname}</Link>
+    <span className="flex items-center gap-2 sm:gap-4">
+      <Link href="/account">내 번개</Link>
       <button onClick={logout} className="btn-text">로그아웃</button>
     </span>
   );

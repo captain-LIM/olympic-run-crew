@@ -8,7 +8,18 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { SOURCE_DOWNLOAD_BASE } from "@/lib/venue3d";
 import type { Venue3D, VenueId } from "@/lib/types";
 
-type Status = "idle" | "loading" | "ready" | "error";
+type Status = "idle" | "waiting" | "loading" | "ready" | "error";
+
+/** 웹 표시용으로 압축한 모델 용량(MB). public/models 기준 */
+const MODEL_MB: Partial<Record<VenueId, number>> = { "kspo-dome": 27, "woori-art-hall": 13, handball: 9, "88-lawn": 5, waterside: 3 };
+
+/** 작은 화면·데이터 절약·느린 회선이면 큰 모델은 탭해야 불러온다 */
+function shouldAutoLoad(venueId: VenueId): boolean {
+  const mb = MODEL_MB[venueId] ?? 10;
+  const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+  if (conn?.saveData || /^(slow-2g|2g|3g)$/.test(conn?.effectiveType ?? "")) return false;
+  return mb <= 6 || (mb <= 14 && window.innerWidth >= 768) || window.innerWidth >= 1024;
+}
 
 /**
  * 카메라 구도용 경계 상자. 방위 표시·대지 경계선처럼 정점은 적은데 멀리 퍼진
@@ -52,6 +63,7 @@ export function VenueViewer({ venues, initial }: { venues: Venue3D[]; initial?: 
   const [progress, setProgress] = useState(0);
   const [unlocked, setUnlocked] = useState<VenueId[]>([]);
   const [cutaway, setCutaway] = useState(false);
+  const [wantLoad, setWantLoad] = useState(false);
   const mountRef = useRef<HTMLDivElement>(null);
   const ctx = useRef<{ camera: THREE.PerspectiveCamera; controls: OrbitControls; box: THREE.Box3; clip: THREE.Plane } | null>(null);
   const venue = venues.find((v) => v.venueId === venueId) ?? venues[0];
@@ -68,6 +80,10 @@ export function VenueViewer({ venues, initial }: { venues: Venue3D[]; initial?: 
     const mount = mountRef.current;
     if (!mount || !venue.modelUrl) {
       setStatus("idle");
+      return;
+    }
+    if (!wantLoad && !shouldAutoLoad(venue.venueId)) {
+      setStatus("waiting");
       return;
     }
     let disposed = false;
@@ -142,7 +158,7 @@ export function VenueViewer({ venues, initial }: { venues: Venue3D[]; initial?: 
       mount.removeChild(renderer.domElement);
       ctx.current = null;
     };
-  }, [venue]);
+  }, [venue, wantLoad]);
 
   /** 지붕을 잘라 내부를 보여주는 단면 보기 */
   function setCut(on: boolean) {
@@ -169,7 +185,7 @@ export function VenueViewer({ venues, initial }: { venues: Venue3D[]; initial?: 
     <div className="stack-sm">
       <div className="chip-row" role="group" aria-label="공연장 선택">
         {venues.map((v) => (
-          <button key={v.venueId} onClick={() => setVenueId(v.venueId)} aria-pressed={v.venueId === venue.venueId} className="chip">
+          <button key={v.venueId} onClick={() => { setVenueId(v.venueId); setWantLoad(false); }} aria-pressed={v.venueId === venue.venueId} className="chip">
             {v.venueName}{unlocked.includes(v.venueId) ? " (해금)" : ""}
           </button>
         ))}
@@ -179,6 +195,12 @@ export function VenueViewer({ venues, initial }: { venues: Venue3D[]; initial?: 
         <div ref={mountRef} className="w-full [&>canvas]:block [&>canvas]:w-full" />
         {status !== "ready" && (
           <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-paper">
+            {status === "waiting" && (
+              <span>
+                <b>{venue.venueName}</b> 3D 모델은 약 {MODEL_MB[venue.venueId] ?? "?"}MB예요.<br />
+                <button onClick={() => setWantLoad(true)} className="btn btn--white mt-4">3D 불러오기</button>
+              </span>
+            )}
             {status === "loading" && `3D 모델 불러오는 중… ${progress}%`}
             {status === "error" && "모델을 불러오지 못했어요. 잠시 후 다시 시도해 주세요."}
             {status === "idle" && (

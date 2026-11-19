@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { MODE_LABEL } from "@/lib/matching";
 import { distanceKm } from "@/lib/park";
-import { formatKstTime } from "@/lib/time";
+import { formatKstDate, formatKstTime, kstDateString } from "@/lib/time";
 import type { Course, Crew, Member, Show } from "@/lib/types";
 import { CourseMap } from "./CourseMap";
 import { CrewChat } from "./CrewChat";
@@ -34,6 +34,7 @@ function fmtCountdown(ms: number) {
   if (ms <= 0) return "출발!";
   const m = Math.floor(ms / 60_000);
   const s = Math.floor((ms % 60_000) / 1000);
+  if (m >= 1440) return `${Math.floor(m / 1440)}일 ${Math.floor((m % 1440) / 60)}시간`;
   return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분 ${String(s).padStart(2, "0")}초`;
 }
 
@@ -59,7 +60,17 @@ export function CrewRoom({ crewId, course, event, user }: { crewId: string; cour
 
   async function patch(body: { checkedIn?: boolean; finished?: boolean }) {
     const res = await fetch(`/api/crews/${crewId}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    if (res.ok) setCrew((await res.json()).crew);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) { setMsg(null); setCrew(data.crew); } else setMsg(data.error ?? "처리하지 못했어요.");
+  }
+
+  async function share() {
+    const url = window.location.href;
+    const text = `${event.title} 전에 같이 걸어요! ${formatKstTime(crew!.startAt)} 출발`;
+    try {
+      if (navigator.share) await navigator.share({ title: "공연 전 한 바퀴", text, url });
+      else { await navigator.clipboard.writeText(url); setMsg("링크를 복사했어요. 친구에게 붙여넣어 보내세요."); }
+    } catch { /* 공유 취소 */ }
   }
 
   async function join() {
@@ -103,6 +114,8 @@ export function CrewRoom({ crewId, course, event, user }: { crewId: string; cour
   const startMs = new Date(crew.startAt).getTime();
   const showMs = new Date(crew.eventStartAt).getTime();
   const closed = now > showMs + 3 * 3600_000;
+  const opensAt = startMs - 30 * 60_000;
+  const canCheckIn = now >= opensAt && !closed;
 
   return (
     <div className="stack">
@@ -115,6 +128,11 @@ export function CrewRoom({ crewId, course, event, user }: { crewId: string; cour
           <span>{crew.paceMinPerKm}분/km</span>
           <span>공연 {formatKstTime(crew.eventStartAt)}</span>
         </p>
+        <p className="mt-1 text-sm text-rule">{formatKstDate(kstDateString(new Date(crew.startAt)))} · 집결지 {course.meetingPoint.name}</p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button onClick={share} className="btn btn--white btn--sm">링크 공유하기</button>
+          {crew.isMember && <a href="#chat" className="btn btn--white btn--sm lg:hidden">채팅 바로가기</a>}
+        </div>
         <div className="mt-6 grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-ink-2 p-4">
             <p className="text-sm text-rule">출발까지</p>
@@ -129,6 +147,33 @@ export function CrewRoom({ crewId, course, event, user }: { crewId: string; cour
           <p className="note note--warn mt-4 !text-ink font-semibold">입장 시간이 다가와요! 공연장으로 이동하세요.</p>
         )}
       </section>
+
+      {mine && (
+        <section className="cell stack-sm" aria-label="내 체크인">
+          {!mine.checkedIn && !canCheckIn && (
+            <p className="note">{closed ? "체크인 가능 시간이 지났어요." : `체크인은 출발 30분 전(${formatKstTime(new Date(opensAt).toISOString())})부터 열려요.`}</p>
+          )}
+          {!mine.checkedIn && canCheckIn && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button onClick={checkIn} className="btn btn--solid">위치로 체크인</button>
+              <button onClick={() => patch({ checkedIn: true })} className="btn">수동 체크인</button>
+            </div>
+          )}
+          {mine.checkedIn && !mine.finished && (
+            <button onClick={() => patch({ finished: true })} className="btn btn--solid btn--block">완주했어요</button>
+          )}
+          {mine.finished && (
+            <Link href={`/venues?v=${event.venueId}`} className="cell cell--well flex items-center justify-between gap-4 no-underline hover:bg-accent-3">
+              <div>
+                <p className="font-display text-xl font-bold">완주 보상 해금!</p>
+                <p className="mt-1 text-sm">{event.venueName} 실감형 3D 무대 시점 보러가기</p>
+              </div>
+              <Mascot pose="cheer" sizes="120px" className="w-24 shrink-0" />
+            </Link>
+          )}
+          {msg && <p role="status" className="note note--warn">{msg}</p>}
+        </section>
+      )}
 
       <div className="grid gap-x-[var(--gap-columns)] gap-y-8 lg:grid-cols-12 lg:items-start">
         <div className="stack lg:col-span-6">
@@ -185,31 +230,8 @@ export function CrewRoom({ crewId, course, event, user }: { crewId: string; cour
         {crew.isMember && (
           <div className="stack lg:col-span-6">
             {user && <CrewChat crewId={crewId} myUserId={user.id} closed={closed} />}
+            <button onClick={leave} className="btn-text justify-self-start">크루 나가기</button>
 
-            {mine && (
-              <section className="stack-sm">
-                {!mine.checkedIn && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <button onClick={checkIn} className="btn btn--solid">위치로 체크인</button>
-                    <button onClick={() => patch({ checkedIn: true })} className="btn">수동 체크인</button>
-                  </div>
-                )}
-                {mine.checkedIn && !mine.finished && (
-                  <button onClick={() => patch({ finished: true })} className="btn btn--solid btn--block">완주했어요</button>
-                )}
-                {mine.finished && (
-                  <Link href={`/venues?v=${event.venueId}`} className="cell cell--well flex items-center justify-between gap-4 no-underline hover:bg-accent-3">
-                    <div>
-                      <p className="font-display text-xl font-bold">완주 보상 해금!</p>
-                      <p className="mt-1 text-sm">{event.venueName} 실감형 3D 무대 시점 보러가기</p>
-                    </div>
-                    <Mascot pose="cheer" sizes="120px" className="w-24 shrink-0" />
-                  </Link>
-                )}
-                {msg && <p className="note note--warn">{msg}</p>}
-                <button onClick={leave} className="btn-text">크루 나가기</button>
-              </section>
-            )}
           </div>
         )}
       </div>

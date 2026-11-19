@@ -48,6 +48,13 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const crew = await getCrew(id);
   if (!crew || !isMember(crew, auth.user.id)) return jsonError("크루 멤버가 아닙니다.", 403);
   const show = await getShow(crew.eventId);
+  const now = Date.now();
+  const opens = new Date(crew.startAt).getTime() - 30 * 60_000;
+  const closes = new Date(crew.eventStartAt).getTime() + 3 * 3600_000;
+  const wantsCheckIn = body?.checkedIn === true || body?.finished === true;
+  if (wantsCheckIn && now < opens) return jsonError("출발 30분 전부터 체크인할 수 있어요.", 409);
+  if (wantsCheckIn && now > closes) return jsonError("체크인 가능 시간이 지났어요.", 409);
+  if (body?.finished === true && !crew.members.find((m) => m.userId === auth.user.id)?.checkedIn) return jsonError("먼저 체크인을 해주세요.", 409);
   const updated = await updateMember(
     id,
     auth.user.id,

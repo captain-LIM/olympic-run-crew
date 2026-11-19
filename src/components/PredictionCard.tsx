@@ -25,6 +25,8 @@ export function PredictionCard({ prediction, showLabel }: { prediction: Predicti
         </p>
       )}
 
+      <details className="mt-4 lg:hidden">
+        <summary className="btn-text">시간대별 그래프 보기</summary>
       <div className="mt-5" role="img" aria-label={`시간대별 예측 혼잡도, ${peak.label}에 최고`}>
         <div className="bars">
           {points.map((p) => (
@@ -41,6 +43,26 @@ export function PredictionCard({ prediction, showLabel }: { prediction: Predicti
             <span key={p.minute}>{p.minute % 120 === 0 ? p.label.slice(0, 2) : ""}</span>
           ))}
         </div>
+      </div>
+      </details>
+      <div className="hidden lg:block">
+      <div className="mt-5" role="img" aria-label={`시간대별 예측 혼잡도, ${peak.label}에 최고`}>
+        <div className="bars">
+          {points.map((p) => (
+            <div
+              key={p.minute}
+              title={`${p.label}, ${p.level} (${Math.round(p.index * 100)})`}
+              className={`bar ${p.label === showLabel ? "bar--now" : ""}`}
+              style={{ height: `${Math.max(p.index * 100, 3)}%`, background: LEVEL_FILL[p.level] }}
+            />
+          ))}
+        </div>
+        <div className="axis" aria-hidden="true">
+          {points.map((p) => (
+            <span key={p.minute}>{p.minute % 120 === 0 ? p.label.slice(0, 2) : ""}</span>
+          ))}
+        </div>
+      </div>
       </div>
       <p className="small mt-4">
         주차장 혼잡 이력(요일·시간대)과 공연장 규모(규모계수 {prediction.scale}), 관객 도착 패턴을 합친 추정치예요. 굵은 테두리는 공연 시작 시각.

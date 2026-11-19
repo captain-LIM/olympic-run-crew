@@ -23,9 +23,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <header className="navbar">
           <nav className="container flex items-center justify-between gap-4 py-3" aria-label="주요 메뉴">
             <Link href="/" className="brand">공연 전 한 바퀴</Link>
-            <div className="flex items-center gap-5">
-              <Link href="/">공연</Link>
-              <Link href="/venues">3D</Link>
+            <div className="flex items-center gap-2 sm:gap-4">
+              <Link href="/venues" className="whitespace-nowrap">공연장 3D</Link>
               <UserMenu nickname={user?.nickname ?? null} />
             </div>
           </nav>

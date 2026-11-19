@@ -7,7 +7,10 @@ import { currentUser } from "@/lib/auth";
 import { getCongestion } from "@/lib/data/congestion";
 import { getShow } from "@/lib/data/shows";
 import { getVenue3D } from "@/lib/data/venue3d";
-import { listCrews } from "@/lib/store";
+import { MODE_LABEL } from "@/lib/matching";
+import { COURSES } from "@/lib/park";
+import { blockedRelations, listCrews } from "@/lib/store";
+import { formatKstDate, formatKstTime, kstDateString } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +18,11 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const show = await getShow(id);
   if (!show) notFound();
-  const [user, crews] = await Promise.all([currentUser(), listCrews(show.id, { upcomingOnly: true })]);
+  const [user, allCrews] = await Promise.all([currentUser(), listCrews(show.id, { upcomingOnly: true })]);
+  const blocked = user ? await blockedRelations(user.id) : new Set<number>();
+  const isTeen = user?.ageGroup === "14-19";
+  // 10대·성인 분리, 차단 관계 크루 제외 (닉네임은 노출하지 않음)
+  const crews = allCrews.filter((c) => c.teenOnly === isTeen && !c.members.some((m) => blocked.has(m.userId)));
   const congestion = getCongestion();
   const has3d = getVenue3D().some((v) => v.venueId === show.venueId);
 
@@ -32,6 +39,27 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         </div>
         <Mascot pose="cheer" priority sizes="220px" className="hidden w-40 shrink-0 sm:block lg:w-52" />
       </header>
+
+      <section aria-labelledby="open-crews" className="cell">
+        <h2 id="open-crews" className="t-cell">지금 열려 있는 번개</h2>
+        {crews.length === 0 ? (
+          <p className="mt-3 text-sm muted">아직 없어요. <a href="#new-crew" className="lnk font-semibold">첫 번개를 열어보세요</a> (로그인 필요)</p>
+        ) : (
+          <ul className="rows mt-3">
+            {crews.slice(0, 8).map((c) => (
+              <li key={c.id}>
+                <Link href={`/crews/${c.id}`} className="row-link">
+                  <div className="min-w-0">
+                    <p className="row-title">{formatKstDate(kstDateString(new Date(c.startAt)))} {formatKstTime(c.startAt)} 출발 · {COURSES.find((x) => x.id === c.courseId)?.name}</p>
+                    <p className="meta mt-1"><span>{MODE_LABEL[c.mode]} {c.paceMinPerKm}분/km</span></p>
+                  </div>
+                  <span className="tag tag--blue">{c.members.length}/{c.capacity}명</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <CrewFinder show={show} curves={congestion.curves} user={user && { nickname: user.nickname, ageGroup: user.ageGroup }} />
 

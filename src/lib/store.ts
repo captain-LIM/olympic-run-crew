@@ -75,6 +75,16 @@ export async function listCrews(eventId?: string, opts: { upcomingOnly?: boolean
   return hydrate(rows);
 }
 
+/** 내가 참여 중이고 아직 출발 전인 크루 */
+export async function myUpcomingCrews(userId: number): Promise<Crew[]> {
+  const rows = await query<CrewRow>(
+    `SELECT c.* FROM crews c JOIN crew_members m ON m.crew_id = c.id
+     WHERE m.user_id = ? AND c.event_start_at > UTC_TIMESTAMP(3) - INTERVAL 3 HOUR ORDER BY c.start_at LIMIT 20`,
+    [userId],
+  );
+  return hydrate(rows);
+}
+
 export async function getCrew(id: string): Promise<Crew | undefined> {
   const rows = await query<CrewRow>("SELECT * FROM crews WHERE id = ?", [id]);
   return (await hydrate(rows))[0];

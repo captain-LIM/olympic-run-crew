@@ -21,7 +21,7 @@ export function ShowSearch({ shows, openCounts }: { shows: Show[]; openCounts: R
     const ids = FILTERS[filter].ids;
     const needle = q.trim().toLowerCase();
     return shows
-      .filter((s) => (!ids || ids.includes(s.venueId)) && (!needle || s.title.toLowerCase().includes(needle)))
+      .filter((s) => (!ids || ids.includes(s.venueId)) && (!needle || s.title.toLowerCase().includes(needle) || s.place.toLowerCase().includes(needle)))
       .sort((a, b) => (openCounts[b.id] ?? 0) - (openCounts[a.id] ?? 0));
   }, [shows, q, filter, openCounts]);
 
@@ -31,7 +31,7 @@ export function ShowSearch({ shows, openCounts }: { shows: Show[]; openCounts: R
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="보러 가는 공연 이름을 검색하세요"
+        placeholder="공연 이름이나 공연장으로 검색"
         className="field !mt-0"
         aria-label="공연 검색"
       />
@@ -42,7 +42,7 @@ export function ShowSearch({ shows, openCounts }: { shows: Show[]; openCounts: R
           </button>
         ))}
       </div>
-      <p className="small mt-5 mb-2" aria-live="polite">{results.length}개 공연</p>
+      <p className="small mt-5 mb-2" aria-live="polite">{results.length}개 공연. 대관정보에는 날짜가 없어서, 공연을 고른 뒤 티켓의 날짜와 시각을 입력해요</p>
       <ul className="rows">
         {results.slice(0, 20).map((s, i) => (
           <li key={s.id}>
