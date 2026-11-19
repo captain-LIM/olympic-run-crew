@@ -259,3 +259,13 @@ export async function unlockedVenues(userId: number): Promise<string[]> {
   const rows = await query<{ venue_id: string }>("SELECT venue_id FROM user_rewards WHERE user_id = ?", [userId]);
   return rows.map((r) => r.venue_id);
 }
+
+/** 내가 완주한 크루(공연·코스 ID) */
+export async function finishedCrewRows(userId: number): Promise<{ eventId: string; courseId: string }[]> {
+  const rows = await query<{ event_id: string; course_id: string }>(
+    `SELECT c.event_id, c.course_id FROM crew_members m JOIN crews c ON c.id = m.crew_id
+      WHERE m.user_id = ? AND m.finished = 1`,
+    [userId],
+  );
+  return rows.map((r) => ({ eventId: r.event_id, courseId: r.course_id }));
+}

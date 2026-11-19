@@ -6,7 +6,9 @@ import { currentUser } from "@/lib/auth";
 import { getShows } from "@/lib/data/shows";
 import { query } from "@/lib/db";
 import { VENUES } from "@/lib/park";
-import { listBlocks, unlockedVenues } from "@/lib/store";
+import { computeBadges, summarizeFinished } from "@/lib/badges";
+import { COURSES } from "@/lib/park";
+import { finishedCrewRows, listBlocks, unlockedVenues } from "@/lib/store";
 import { formatKstDate, formatKstTime, kstDateString } from "@/lib/time";
 import type { VenueId } from "@/lib/types";
 
@@ -19,7 +21,7 @@ export default async function AccountPage() {
   const user = await currentUser();
   if (!user) redirect("/login?next=/account");
 
-  const [blocks, unlocked, myCrews, { shows }] = await Promise.all([
+  const [blocks, unlocked, myCrews, { shows }, finished] = await Promise.all([
     listBlocks(user.id),
     unlockedVenues(user.id),
     query<{ id: string; event_id: string; start_at: Date; event_start_at: Date }>(
@@ -29,8 +31,13 @@ export default async function AccountPage() {
       [user.id],
     ),
     getShows(),
+    finishedCrewRows(user.id),
   ]);
   const title = new Map(shows.map((s) => [s.id, s.title]));
+  const venueOf = new Map(shows.map((s) => [s.id, s.venueId as string]));
+  const stats = summarizeFinished(finished.map((f) => ({ venueId: venueOf.get(f.eventId), distanceKm: COURSES.find((c) => c.id === f.courseId)?.distanceKm ?? 0 })));
+  const badges = computeBadges(stats);
+  const venueList = Object.values(VENUES).filter((v) => v.id !== "other");
 
   return (
     <div className="stack">
@@ -84,6 +91,26 @@ export default async function AccountPage() {
         ) : (
           <p className="mt-3 text-sm">크루를 완주하면 공연장 3D '무대 시점'이 열려요.</p>
         )}
+      </section>
+
+      <section className="cell" aria-labelledby="records">
+        <h2 id="records" className="t-cell">나의 기록</h2>
+        <p className="meta mt-3"><span>완주 {stats.count}회</span><span>누적 {stats.km}km</span><span>공연장 {stats.venues.length}곳</span></p>
+        <ul className="mt-4 grid grid-cols-2 gap-3">
+          {badges.map((b) => (
+            <li key={b.id} className={`rounded-2xl border p-3 ${b.earned ? "border-accent bg-accent-3" : "border-rule"}`}>
+              <p className="font-semibold">{b.name}</p>
+              <p className="small mt-1">{b.desc}</p>
+              <p className="mt-2"><span className={`tag ${b.earned ? "tag--blue" : ""}`}>{b.earned ? "획득" : b.progress}</span></p>
+            </li>
+          ))}
+        </ul>
+        <h3 className="label mt-5">공연장 완주 지도</h3>
+        <ul className="chip-row mt-2 !flex-wrap">
+          {venueList.map((v) => (
+            <li key={v.id} className={`chip ${stats.venues.includes(v.id) ? "chip--on" : ""}`}>{stats.venues.includes(v.id) ? "✓ " : ""}{v.name}</li>
+          ))}
+        </ul>
       </section>
 
       <section className="cell">

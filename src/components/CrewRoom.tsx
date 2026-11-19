@@ -10,6 +10,7 @@ import type { Course, Crew, Member, Show } from "@/lib/types";
 import { CourseMap } from "./CourseMap";
 import { CrewChat } from "./CrewChat";
 import { Mascot } from "./Mascot";
+import { RecordCard } from "./RecordCard";
 import { ReportDialog } from "./ReportDialog";
 
 type CrewView = Omit<Crew, "members"> & {
@@ -173,6 +174,10 @@ export function CrewRoom({ crewId, course, event, user }: { crewId: string; cour
           )}
           {msg && <p role="status" className="note note--warn">{msg}</p>}
         </section>
+      )}
+
+      {mine?.finished && (
+        <RecordCard crew={{ mode: crew.mode, paceMinPerKm: crew.paceMinPerKm, startAt: crew.startAt, eventStartAt: crew.eventStartAt, memberCount: crew.members.length }} course={course} eventTitle={event.title} />
       )}
 
       <div className="grid gap-x-[var(--gap-columns)] gap-y-8 lg:grid-cols-12 lg:items-start">

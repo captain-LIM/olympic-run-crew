@@ -124,3 +124,8 @@ textarea.field { min-height: 6rem; resize: vertical; }
 
 .skip { position: absolute; left: var(--space-md); top: -4rem; z-index: var(--z-modal); background: var(--color-ink); color: var(--color-paper-3); padding: var(--space-sm) var(--space-md); border-radius: var(--radius-pill); }
 .skip:focus-visible { top: var(--space-sm); }
+
+/* 읽기 전용 칩(완주 지도) */
+li.chip { display: inline-flex; align-items: center; cursor: default; }
+li.chip:hover { border-color: var(--color-rule); color: var(--color-ink); }
+.chip--on { background: var(--color-accent-3); border-color: var(--color-accent); color: var(--color-accent); }
