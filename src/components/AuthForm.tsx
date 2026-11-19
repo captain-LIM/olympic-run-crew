@@ -16,20 +16,23 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: stri
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [nickname, setNickname] = useState("");
   const [ageGroup, setAgeGroup] = useState<AgeGroup | "">("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const isSignup = mode === "signup";
+  const mismatch = isSignup && passwordConfirm.length > 0 && password !== passwordConfirm;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (isSignup && password !== passwordConfirm) return setError("비밀번호가 서로 일치하지 않아요.");
     setBusy(true);
     setError(null);
     const res = await fetch(`/api/auth/${mode}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(isSignup ? { email, password, nickname, ageGroup } : { email, password }),
+      body: JSON.stringify(isSignup ? { email, password, passwordConfirm, nickname, ageGroup } : { email, password }),
     });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
@@ -59,6 +62,20 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: stri
       {isSignup && (
         <>
           <label className="block">
+            <span className="label">비밀번호 확인</span>
+            <input
+              type="password"
+              required
+              autoComplete="new-password"
+              value={passwordConfirm}
+              onChange={(e) => setPasswordConfirm(e.target.value)}
+              aria-invalid={mismatch}
+              aria-describedby={mismatch ? "pw-mismatch" : undefined}
+              className="field"
+            />
+            {mismatch && <span id="pw-mismatch" role="alert" className="mt-2 block text-sm font-semibold text-error">비밀번호가 서로 일치하지 않아요.</span>}
+          </label>
+          <label className="block">
             <span className="label">닉네임 <span className="font-normal">(크루원에게 보이는 이름, 1~12자)</span></span>
             <input required maxLength={12} value={nickname} onChange={(e) => setNickname(e.target.value)} className="field" />
           </label>
@@ -73,7 +90,7 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: stri
         </>
       )}
       {error && <p role="alert" className="note note--error">{error}</p>}
-      <button disabled={busy} className="btn btn--solid btn--block !mt-6">
+      <button disabled={busy || mismatch} className="btn btn--solid btn--block !mt-6">
         {busy ? "처리 중…" : isSignup ? "가입하기" : "로그인"}
       </button>
       <p className="pt-2 text-sm">

@@ -11,6 +11,7 @@ export async function POST(req: Request) {
   const email = normalizeEmail(String(body.email ?? ""));
   if (!email) return jsonError("이메일 형식을 확인하세요.", 400);
   const password = String(body.password ?? "");
+  if (password !== String(body.passwordConfirm ?? "")) return jsonError("비밀번호가 서로 일치하지 않아요.", 400);
   const policy = checkPasswordPolicy(password);
   if (!policy.ok) return jsonError(policy.reason!, 400);
   const profile = parseProfile(body);
