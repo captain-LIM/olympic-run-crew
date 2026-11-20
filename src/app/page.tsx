@@ -17,22 +17,22 @@ export default async function Home() {
   const congestion = getCongestion();
   const showById = new Map(shows.map((s) => [s.id, s]));
 
+  // DB에 문제가 있어도 공연 목록·혼잡도는 보여주고, 번개 영역만 비운다.
+  // 로그인 여부와 무관한 조회는 로그인 확인과 동시에 시작한다.
+  // allSettled로 바로 감싸서, 먼저 실패해도 '처리되지 않은 Promise 거부'가 되지 않게 한다.
+  const openSettled = Promise.allSettled([listCrews(undefined, { upcomingOnly: true })]);
   const user = await currentUser().catch(() => null);
+  const [mineRes] = await Promise.allSettled([user ? myUpcomingCrews(user.id) : Promise.resolve<Crew[]>([])]);
+  const [openRes] = await openSettled;
 
-  // DB에 문제가 있어도 공연 목록·혼잡도는 보여주고, 번개 영역만 비운다
-  let crewsUnavailable = false;
-  const loadCrews = async (load: () => Promise<Crew[]>): Promise<Crew[]> => {
-    try {
-      return await load();
-    } catch (e) {
-      console.error("[home] 번개 조회 실패:", e);
-      crewsUnavailable = true;
-      return [];
-    }
-  };
-  const mine = user ? (await loadCrews(() => myUpcomingCrews(user.id))).filter((c) => showById.has(c.eventId)) : [];
+  // 하나라도 실패하면 번개 정보를 믿을 수 없으므로 둘 다 비운다
+  // (내 번개만 실패하면 내 번개가 '모집 중'에 섞여 보이는 것을 막는다)
+  const failures = [mineRes, openRes].filter((r) => r.status === "rejected");
+  for (const f of failures) console.error("[home] 번개 조회 실패:", f.reason);
+  const crewsUnavailable = failures.length > 0;
+  const mine = !crewsUnavailable && mineRes.status === "fulfilled" ? mineRes.value.filter((c) => showById.has(c.eventId)) : [];
   const mineIds = new Set(mine.map((c) => c.id));
-  const open = (await loadCrews(() => listCrews(undefined, { upcomingOnly: true }))).filter((c) => showById.has(c.eventId) && !mineIds.has(c.id));
+  const open = !crewsUnavailable && openRes.status === "fulfilled" ? openRes.value.filter((c) => showById.has(c.eventId) && !mineIds.has(c.id)) : [];
   const openCounts: Record<string, number> = {};
   for (const c of open) openCounts[c.eventId] = (openCounts[c.eventId] ?? 0) + 1;
 
@@ -57,7 +57,7 @@ export default async function Home() {
       </section>
 
       {crewsUnavailable && (
-        <p role="status" className="note">지금은 번개 정보를 불러오지 못했어요. 공연 목록은 그대로 볼 수 있어요.</p>
+        <p className="note note--warn">지금은 번개 정보를 불러오지 못했어요. 공연 목록은 그대로 볼 수 있어요.</p>
       )}
 
       {mine.length > 0 && (
