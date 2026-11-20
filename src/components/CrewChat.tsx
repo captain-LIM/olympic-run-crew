@@ -8,8 +8,23 @@ import { ReportDialog } from "./ReportDialog";
 
 const POLL_MS = 3000;
 
-/** 크루 채팅 (3초 간격 폴링). 차단한 사용자의 메시지는 서버에서 제외된다. */
-export function CrewChat({ crewId, myUserId, closed }: { crewId: string; myUserId: number; closed: boolean }) {
+/**
+ * 크루 채팅 (3초 간격 폴링). 차단한 사용자의 메시지는 서버에서 제외된다.
+ * 폴링은 새 메시지만 받으므로, 이 화면에서 차단한 사용자(blockedIds)의 이미 받은 메시지는 그릴 때 거른다.
+ */
+export function CrewChat({
+  crewId,
+  myUserId,
+  closed,
+  blockedIds,
+  onBlocked,
+}: {
+  crewId: string;
+  myUserId: number;
+  closed: boolean;
+  blockedIds: ReadonlySet<number>;
+  onBlocked: (userId: number) => void;
+}) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +35,8 @@ export function CrewChat({ crewId, myUserId, closed }: { crewId: string; myUserI
   const [notify, setNotify] = useState(false);
   const notifyRef = useRef(false);
   notifyRef.current = notify;
+  const blockedRef = useRef(blockedIds);
+  blockedRef.current = blockedIds;
   const seeded = useRef(false);
 
   const poll = useCallback(async () => {
@@ -28,7 +45,7 @@ export function CrewChat({ crewId, myUserId, closed }: { crewId: string; myUserI
     const { messages: fresh } = (await res.json()) as { messages: ChatMessage[] };
     if (fresh.length) {
       lastId.current = fresh[fresh.length - 1].id;
-      const incoming = fresh.filter((m) => m.userId !== myUserId);
+      const incoming = fresh.filter((m) => m.userId !== myUserId && !blockedRef.current.has(m.userId));
       if (seeded.current && notifyRef.current && document.hidden && incoming.length && typeof Notification !== "undefined" && Notification.permission === "granted") {
         const last = incoming[incoming.length - 1];
         new Notification(`${last.nickname}: 크루 새 메시지`, { body: last.body.slice(0, 80) });
@@ -52,9 +69,11 @@ export function CrewChat({ crewId, myUserId, closed }: { crewId: string; myUserI
     return () => clearInterval(t);
   }, [poll]);
 
+  const visible = messages.filter((m) => !blockedIds.has(m.userId));
+
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
-  }, [messages.length]);
+  }, [visible.length]);
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -69,10 +88,6 @@ export function CrewChat({ crewId, myUserId, closed }: { crewId: string; myUserI
     poll();
   }
 
-  function onBlocked(userId: number) {
-    setMessages((prev) => prev.filter((m) => m.userId !== userId));
-  }
-
   return (
     <section id="chat" className="cell scroll-mt-24">
       <div className="cell-head">
@@ -81,13 +96,13 @@ export function CrewChat({ crewId, myUserId, closed }: { crewId: string; myUserI
       </div>
       {notify && <p className="small mt-1">이 탭이 열려 있는 동안 새 메시지를 알려드려요.</p>}
       <ul ref={listRef} className="chat-well mt-4 h-72 space-y-3 overflow-y-auto" aria-live="polite">
-        {messages.length === 0 && (
+        {visible.length === 0 && (
           <li className="flex flex-col items-center gap-3 pt-6 text-center text-sm muted">
             <Mascot pose="phone" sizes="120px" className="w-24" />
             첫 인사를 남겨보세요. 집결지에서 어떤 옷을 입고 있는지 알려주면 찾기 쉬워요.
           </li>
         )}
-        {messages.map((m) => {
+        {visible.map((m) => {
           const mine = m.userId === myUserId;
           return (
             <li key={m.id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>

@@ -45,6 +45,11 @@ export function CrewRoom({ crewId, course, event, user }: { crewId: string; cour
   const [msg, setMsg] = useState<string | null>(null);
   const [gone, setGone] = useState(false);
   const [reporting, setReporting] = useState<{ userId: number; nickname: string } | null>(null);
+  // 이 화면에서 차단한 사용자. 채팅은 그릴 때마다 이 목록으로 거른다 (이미 받아 둔 메시지 포함)
+  const [blockedIds, setBlockedIds] = useState<ReadonlySet<number>>(() => new Set());
+  const markBlocked = useCallback((userId: number) => {
+    setBlockedIds((prev) => (prev.has(userId) ? prev : new Set(prev).add(userId)));
+  }, []);
   const now = useNow();
 
   const refresh = useCallback(async () => {
@@ -105,6 +110,7 @@ export function CrewRoom({ crewId, course, event, user }: { crewId: string; cour
   async function block(target: { userId: number; nickname: string }) {
     if (!confirm(`${target.nickname}님을 차단할까요? 서로의 채팅이 보이지 않고 앞으로 같은 번개에 매칭되지 않아요.`)) return;
     const res = await fetch("/api/blocks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId: target.userId }) });
+    if (res.ok) markBlocked(target.userId);
     setMsg(res.ok ? `${target.nickname}님을 차단했어요. 계정 페이지에서 해제할 수 있어요.` : "차단에 실패했어요.");
   }
 
@@ -234,7 +240,7 @@ export function CrewRoom({ crewId, course, event, user }: { crewId: string; cour
 
         {crew.isMember && (
           <div className="stack lg:col-span-6">
-            {user && <CrewChat crewId={crewId} myUserId={user.id} closed={closed} />}
+            {user && <CrewChat crewId={crewId} myUserId={user.id} closed={closed} blockedIds={blockedIds} onBlocked={markBlocked} />}
             <button onClick={leave} className="btn-text justify-self-start">크루 나가기</button>
 
           </div>
@@ -243,7 +249,7 @@ export function CrewRoom({ crewId, course, event, user }: { crewId: string; cour
 
       <p className="small">안전 수칙: 공개된 장소에서만 만나고, 개인 연락처 교환은 자제하세요. 불편한 상황은 신고하거나 공원 안내센터에 알려주세요.</p>
 
-      {reporting && <ReportDialog target={reporting} crewId={crewId} onClose={() => setReporting(null)} />}
+      {reporting && <ReportDialog target={reporting} crewId={crewId} onClose={() => setReporting(null)} onBlocked={markBlocked} />}
     </div>
   );
 }
