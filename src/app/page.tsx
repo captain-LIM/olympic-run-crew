@@ -8,6 +8,7 @@ import { MODE_LABEL } from "@/lib/matching";
 import { currentUser } from "@/lib/auth";
 import { listCrews, myUpcomingCrews } from "@/lib/store";
 import { formatKstDate, formatKstTime, kstDateString } from "@/lib/time";
+import type { Crew } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +18,21 @@ export default async function Home() {
   const showById = new Map(shows.map((s) => [s.id, s]));
 
   const user = await currentUser().catch(() => null);
-  const mine = user ? (await myUpcomingCrews(user.id)).filter((c) => showById.has(c.eventId)) : [];
+
+  // DB에 문제가 있어도 공연 목록·혼잡도는 보여주고, 번개 영역만 비운다
+  let crewsUnavailable = false;
+  const loadCrews = async (load: () => Promise<Crew[]>): Promise<Crew[]> => {
+    try {
+      return await load();
+    } catch (e) {
+      console.error("[home] 번개 조회 실패:", e);
+      crewsUnavailable = true;
+      return [];
+    }
+  };
+  const mine = user ? (await loadCrews(() => myUpcomingCrews(user.id))).filter((c) => showById.has(c.eventId)) : [];
   const mineIds = new Set(mine.map((c) => c.id));
-  const open = (await listCrews(undefined, { upcomingOnly: true })).filter((c) => showById.has(c.eventId) && !mineIds.has(c.id));
+  const open = (await loadCrews(() => listCrews(undefined, { upcomingOnly: true }))).filter((c) => showById.has(c.eventId) && !mineIds.has(c.id));
   const openCounts: Record<string, number> = {};
   for (const c of open) openCounts[c.eventId] = (openCounts[c.eventId] ?? 0) + 1;
 
@@ -42,6 +55,10 @@ export default async function Home() {
           <Mascot pose="hero" priority sizes="(min-width: 1024px) 640px, 100vw" className="mx-auto w-full max-w-[44rem] lg:w-[110%] lg:max-w-none lg:-ml-[6%]" />
         </div>
       </section>
+
+      {crewsUnavailable && (
+        <p role="status" className="note">지금은 번개 정보를 불러오지 못했어요. 공연 목록은 그대로 볼 수 있어요.</p>
+      )}
 
       {mine.length > 0 && (
         <section aria-labelledby="mine-title">
