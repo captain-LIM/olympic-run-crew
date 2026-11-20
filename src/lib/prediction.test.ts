@@ -22,7 +22,7 @@ describe("predictShowDay", () => {
     const p = predictShowDay({ curves, showStart: satShow, venueId: "kspo-dome" });
     expect(p.walkWindow).not.toBeNull();
     expect(p.walkWindow!.from >= "15:30").toBe(true); // 공연 150분 전 이후
-    expect(p.walkWindow!.to <= "17:15").toBe(true); // 공연 45분 전까지 종료
+    expect(p.walkWindow!.to <= "17:00").toBe(true); // 공연 60분 전까지 종료
   });
 
   it("scales with venue size (big arena busier than small hall)", () => {

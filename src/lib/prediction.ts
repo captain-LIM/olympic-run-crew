@@ -7,7 +7,7 @@ import type { CongestionLevel, DayType, HourlyPoint, VenueId } from "./types";
  *
  *   예측지수(t) = min(1, 기저 × BASE_WEIGHT + 공연부하(t))
  *   - 기저: 주차장 혼잡도 정보(CSV)로 만든 요일유형별 시간대 혼잡 이력 지수 (선형 보간)
- *   - 공연부하: 공연 규모계수 × 관객 도착 분포
+ *   - 공연부하: 공연 규모계수 × max(본 도착, 조기 도착 × 0.45)
  *       · 본 도착: 공연 시작 70분 전 중심 (σ 45분)
  *       · 조기 도착(굿즈·대기): 공연 시작 3시간 전 중심 (σ 60분), 대형 공연장일수록 큼
  *   - 규모계수: (수용인원 / 15,000)^0.6  — KSPO DOME 만석 공연 = 1
@@ -52,7 +52,7 @@ export interface Prediction {
   /** 공연 관객 유입(공연부하)이 본격화되는 시각 */
   crowdFrom: string | null;
   peak: PredictionPoint;
-  /** 출발 가능 구간(공연 150~45분 전) 중 예측 혼잡이 가장 낮은 60분 산책 구간 */
+  /** 출발 가능 구간(공연 150~60분 전) 중 예측 혼잡이 가장 낮은 60분 산책 구간 */
   walkWindow: { from: string; to: string; index: number } | null;
 }
 
@@ -119,9 +119,14 @@ export function predictShowDay(params: {
 const CROWD_EVENT_THRESHOLD = 0.3;
 const WALK_LEN = 60;
 const WALK_EARLIEST_BEFORE = 150;
-const WALK_LATEST_END_BEFORE = 45;
+/**
+ * 산책 구간이 늦어도 공연 몇 분 전에는 끝나야 하는지.
+ * 구간 시작은 공연 150분 전부터 STEP_MIN(30분) 간격이라, 실제로 끝나는 시각은 공연 90분 전 또는 60분 전뿐이다.
+ * (예전 값 45는 이 간격 때문에 60과 똑같이 동작했다)
+ */
+const WALK_LATEST_END_BEFORE = 60;
 
-/** 공연 150분 전 ~ 45분 전 사이에서 평균 예측지수가 가장 낮은 60분 구간 */
+/** 공연 150분 전 ~ 60분 전 사이에서 평균 예측지수가 가장 낮은 60분 구간 */
 export function bestWalkWindow(points: PredictionPoint[], showMin: number): Prediction["walkWindow"] {
   let best: Prediction["walkWindow"] = null;
   for (let s = showMin - WALK_EARLIEST_BEFORE; s + WALK_LEN <= showMin - WALK_LATEST_END_BEFORE; s += STEP_MIN) {
