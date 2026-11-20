@@ -43,12 +43,20 @@ export function ReportDialog({
       setBusy(false);
       return setResult(data.error ?? "신고에 실패했어요.");
     }
+    let blockNote = "";
     if (alsoBlock) {
-      await fetch("/api/blocks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId: target.userId }) });
-      onBlocked?.(target.userId);
+      // 차단 저장이 실제로 성공했을 때만 화면에서도 차단한 것으로 처리한다
+      const blockRes = await fetch("/api/blocks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId: target.userId }) }).catch(() => null);
+      if (blockRes?.ok) {
+        onBlocked?.(target.userId);
+        blockNote = " 이 사용자를 차단했어요.";
+      } else {
+        blockNote = " 차단은 실패했어요. 잠시 후 다시 시도해 주세요.";
+      }
     }
     setBusy(false);
-    setResult(data.duplicate ? "이미 신고한 내용이에요." : `신고가 접수됐어요.${data.hidden ? " 해당 메시지는 가려졌어요." : ""}${alsoBlock ? " 이 사용자를 차단했어요." : ""}`);
+    const reportNote = data.duplicate ? "이미 신고한 내용이에요." : `신고가 접수됐어요.${data.hidden ? " 해당 메시지는 가려졌어요." : ""}`;
+    setResult(reportNote + blockNote);
   }
 
   return (
