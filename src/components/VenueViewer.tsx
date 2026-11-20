@@ -55,6 +55,21 @@ function focusBox(model: THREE.Object3D, maxSamples = 200_000): THREE.Box3 {
 }
 
 /**
+ * 모델이 GPU에 올린 지오메트리·재질·텍스처를 해제한다.
+ * renderer.dispose()는 렌더러 내부 목록만 정리하고 이것들은 해제하지 않는다.
+ */
+function disposeObject(root: THREE.Object3D) {
+  root.traverse((o) => {
+    if (!(o instanceof THREE.Mesh)) return;
+    o.geometry.dispose();
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      for (const v of Object.values(m)) if (v instanceof THREE.Texture) v.dispose(); // map, normalMap 등
+      m.dispose();
+    }
+  });
+}
+
+/**
  * 한국체육산업개발_올림픽공원 공연장 실감형 콘텐츠의 GLB를 meshopt 압축한 모델을 렌더링.
  */
 export function VenueViewer({ venues, initial, autoStage = false }: { venues: Venue3D[]; initial?: VenueId; autoStage?: boolean }) {
@@ -122,13 +137,28 @@ export function VenueViewer({ venues, initial, autoStage = false }: { venues: Ve
     };
     loop();
 
+    // 창 크기·화면 방향이 바뀌면 캔버스와 카메라 비율을 다시 맞춘다
+    const resize = new ResizeObserver(() => {
+      const w2 = mount.clientWidth;
+      if (!w2) return;
+      const h2 = Math.round(w2 * 0.7);
+      renderer.setSize(w2, h2);
+      camera.aspect = w2 / h2;
+      camera.updateProjectionMatrix();
+    });
+    resize.observe(mount);
+
+    let model: THREE.Object3D | null = null;
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
     loader.load(
       venue.modelUrl,
       (gltf) => {
-        if (disposed) return;
-        const model = gltf.scene;
+        if (disposed) {
+          disposeObject(gltf.scene); // 공연장을 이미 바꾼 뒤에 도착한 모델
+          return;
+        }
+        model = gltf.scene;
         scene.add(model);
         const box = focusBox(model);
         model.traverse((o) => {
@@ -154,8 +184,11 @@ export function VenueViewer({ venues, initial, autoStage = false }: { venues: Ve
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
+      resize.disconnect();
       controls.dispose();
+      if (model) disposeObject(model);
       renderer.dispose();
+      renderer.forceContextLoss(); // WebGL 컨텍스트를 가비지 컬렉션을 기다리지 않고 바로 닫는다
       mount.removeChild(renderer.domElement);
       ctx.current = null;
     };
