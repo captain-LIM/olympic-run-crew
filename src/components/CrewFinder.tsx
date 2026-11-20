@@ -44,14 +44,21 @@ export function CrewFinder({
   const [pace, setPace] = useState(DEFAULT_PACE.walk);
   const [capacity, setCapacity] = useState(6);
   const [matches, setMatches] = useState<Crew[] | null>(null);
-  const [error, setErrorRaw] = useState<{ at: "search" | "match" | "create"; msg: string } | null>(null);
+  // crewId: 이미 참여 중인 번개(번개 열기 409)로 가는 링크용
+  const [error, setErrorRaw] = useState<{ at: "search" | "match" | "create"; msg: string; crewId?: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [searching, setSearching] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const resultsRef = useRef<HTMLElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
-  const setError = (at: "search" | "match" | "create", msg: string | null) => setErrorRaw(msg ? { at, msg } : null);
-  const errorAt = (at: string) => (error?.at === at ? <p role="alert" className="note note--error mt-4">{error.msg}</p> : null);
+  const setError = (at: "search" | "match" | "create", msg: string | null, crewId?: string) => setErrorRaw(msg ? { at, msg, crewId } : null);
+  const errorAt = (at: string) =>
+    error?.at === at ? (
+      <>
+        <p role="alert" className="note note--error mt-4">{error.msg}</p>
+        {error.crewId && <Link href={`/crews/${error.crewId}`} className="lnk mt-2 inline-block text-sm font-semibold">참여 중인 번개로 가기</Link>}
+      </>
+    ) : null;
 
   useEffect(() => {
     if (!confirming) return;
@@ -125,7 +132,7 @@ export function CrewFinder({
     });
     const data = await res.json();
     setBusy(false);
-    if (!res.ok) return setError("create", data.error ?? "번개를 열지 못했어요.");
+    if (!res.ok) return setError("create", data.error ?? "번개를 열지 못했어요.", res.status === 409 && typeof data.crewId === "string" ? data.crewId : undefined);
     router.push(`/crews/${data.crew.id}`);
   }
 

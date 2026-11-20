@@ -3,6 +3,7 @@ import type { RowDataPacket } from "mysql2/promise";
 import type { User } from "./auth";
 import { exec, query, transaction } from "./db";
 import { canJoin } from "./matching";
+import { kstDateString, kstDateTime } from "./time";
 import type { AgeGroup, ChatMessage, Crew, CrewMode, Member, ReportReason } from "./types";
 
 /** MySQL 기반 크루·채팅·신고·차단 저장소 (서버 전용) */
@@ -100,17 +101,40 @@ export interface NewCrewInput {
   capacity: number;
 }
 
-export async function createCrew(input: NewCrewInput, host: User): Promise<Crew> {
+/**
+ * 번개 생성. 같은 공연·같은 공연 날짜(KST)에 이미 참여 중인 번개가 있으면 만들지 않는다.
+ * (한 사람이 같은 공연 번개를 여러 개 열어 매칭 목록을 채우는 것을 막는다)
+ */
+export async function createCrew(input: NewCrewInput, host: User): Promise<{ crew?: Crew; error?: string; existingCrewId?: string }> {
   const id = randomBytes(6).toString("base64url").slice(0, 8);
-  await transaction(async (conn) => {
+  // "같은 날짜"는 매칭 규칙(findMatches)과 같게 KST 날짜 기준
+  const dayStart = kstDateTime(kstDateString(input.eventStartAt), "00:00");
+  const dayEnd = new Date(dayStart.getTime() + 86_400_000);
+
+  const blocked = await transaction(async (conn) => {
+    // 같은 사용자의 요청이 동시에 와도 둘 다 검사를 통과하지 않도록 사용자 행을 잠근다
+    await conn.query("SELECT id FROM users WHERE id = ? FOR UPDATE", [host.id]);
+    // READ COMMITTED(아래 옵션)라서, 이 일반 SELECT는 다른 요청이 방금 커밋한 번개까지 본다.
+    // 기본값(REPEATABLE READ)이면 첫 일반 SELECT 시점의 스냅샷을 읽으므로, 그 시점이 잠금보다
+    // 앞서면 중복 검사가 뚫린다. FOR SHARE로 바꾸면 빈 구간 잠금 때문에 서로 다른 사용자의
+    // 동시 생성이 교착 상태(deadlock)에 빠진다(실측: 8명 동시 생성 중 7건 실패).
+    const [dup] = await conn.query<RowDataPacket[]>(
+      `SELECT c.id FROM crews c JOIN crew_members m ON m.crew_id = c.id
+        WHERE m.user_id = ? AND c.event_id = ? AND c.event_start_at >= ? AND c.event_start_at < ?
+        LIMIT 1`,
+      [host.id, input.eventId, dayStart, dayEnd],
+    );
+    if (dup.length) return { error: "이미 이 공연(같은 날짜)의 번개에 참여 중이에요.", existingCrewId: String(dup[0].id) };
     await conn.query(
       `INSERT INTO crews (id, event_id, mode, pace_min_per_km, course_id, start_at, event_start_at, capacity, teen_only, host_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, input.eventId, input.mode, input.paceMinPerKm, input.courseId, input.startAt, input.eventStartAt, input.capacity, host.ageGroup === "14-19", host.id],
     );
     await conn.query("INSERT INTO crew_members (crew_id, user_id) VALUES (?, ?)", [id, host.id]);
-  });
-  return (await getCrew(id))!;
+    return null;
+  }, { readCommitted: true });
+  if (blocked) return blocked;
+  return { crew: (await getCrew(id))! };
 }
 
 /** 나를 차단했거나 내가 차단한 사용자 ID */

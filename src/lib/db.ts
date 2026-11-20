@@ -29,9 +29,15 @@ export async function exec(sql: string, params: unknown[] = []): Promise<mysql.R
   return res as mysql.ResultSetHeader;
 }
 
-export async function transaction<T>(fn: (conn: mysql.PoolConnection) => Promise<T>): Promise<T> {
+/**
+ * readCommitted: 이 트랜잭션만 READ COMMITTED로 실행한다.
+ * 일반 SELECT도 스냅샷이 아니라 매번 최신 커밋 상태를 읽고, 빈 구간 잠금(gap lock)을 걸지 않는다.
+ */
+export async function transaction<T>(fn: (conn: mysql.PoolConnection) => Promise<T>, opts: { readCommitted?: boolean } = {}): Promise<T> {
   const conn = await db().getConnection();
   try {
+    // SESSION 없이 쓰면 바로 다음 트랜잭션 하나에만 적용된다
+    if (opts.readCommitted) await conn.query("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
     await conn.beginTransaction();
     const out = await fn(conn);
     await conn.commit();
