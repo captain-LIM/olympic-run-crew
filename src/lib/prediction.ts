@@ -52,7 +52,7 @@ export interface Prediction {
   /** 공연 관객 유입(공연부하)이 본격화되는 시각 */
   crowdFrom: string | null;
   peak: PredictionPoint;
-  /** 출발 가능 구간(공연 150~60분 전) 중 예측 혼잡이 가장 낮은 60분 산책 구간 */
+  /** 출발 가능 구간(공연 150~45분 전) 중 예측 혼잡이 가장 낮은 60분 산책 구간 */
   walkWindow: { from: string; to: string; index: number } | null;
 }
 
