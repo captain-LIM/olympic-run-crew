@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
   const timing = validateTiming({ startAt, eventStartAt, course, pace, venueId: show.venueId });
   if (!timing.ok) return NextResponse.json({ error: timing.reason, timing }, { status: 422 });
 
-  const crew = await createCrew({ eventId: show.id, mode, paceMinPerKm: pace, courseId: course.id, startAt, eventStartAt, capacity }, auth.user);
-  return NextResponse.json({ crew }, { status: 201 });
+  const r = await createCrew({ eventId: show.id, mode, paceMinPerKm: pace, courseId: course.id, startAt, eventStartAt, capacity }, auth.user);
+  if (r.error || !r.crew) return jsonError(r.error ?? "번개를 열 수 없습니다.", 409);
+  return NextResponse.json({ crew: r.crew }, { status: 201 });
 }
