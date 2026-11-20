@@ -55,6 +55,31 @@ function focusBox(model: THREE.Object3D, maxSamples = 200_000): THREE.Box3 {
 }
 
 /**
+ * 모델이 GPU에 올린 지오메트리·재질·텍스처를 해제한다.
+ * renderer.dispose()는 렌더러 내부 목록만 정리하고 이것들은 해제하지 않는다.
+ */
+function disposeObject(root: THREE.Object3D) {
+  root.traverse((o) => {
+    if (!(o instanceof THREE.Mesh)) return;
+    o.geometry.dispose();
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      for (const v of Object.values(m)) {
+        if (!(v instanceof THREE.Texture)) continue; // map, normalMap 등
+        // GLTFLoader는 지원 브라우저에서 텍스처 이미지를 ImageBitmap으로 만든다.
+        // texture.dispose()는 GPU 사본만 지우므로, 압축을 푼 이미지(CPU 메모리)도 바로 닫는다
+        const img: unknown = v.source.data;
+        if (typeof ImageBitmap !== "undefined" && img instanceof ImageBitmap) img.close();
+        v.dispose();
+      }
+      m.dispose();
+    }
+  });
+}
+
+/** 캔버스 높이 = 너비 × ASPECT */
+const ASPECT = 0.7;
+
+/**
  * 한국체육산업개발_올림픽공원 공연장 실감형 콘텐츠의 GLB를 meshopt 압축한 모델을 렌더링.
  */
 export function VenueViewer({ venues, initial, autoStage = false }: { venues: Venue3D[]; initial?: VenueId; autoStage?: boolean }) {
@@ -92,11 +117,17 @@ export function VenueViewer({ venues, initial, autoStage = false }: { venues: Ve
     setProgress(0);
     setCutaway(false);
 
-    const w = mount.clientWidth;
-    const h = Math.round(w * 0.7);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(w, h);
+    // 그리는 해상도만 컨테이너 너비와 화면 배율에 맞춘다.
+    // 표시 크기는 CSS(w-full, h-auto)가 캔버스 비율로 정하므로, JS가 레이아웃을 바꾸지 않는다
+    // (JS가 표시 크기를 정하면 캔버스 높이 → 페이지 높이 → 스크롤바 → 너비로 되먹임될 수 있다)
+    const fit = () => {
+      const w = mount.clientWidth;
+      if (!w) return;
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(w, Math.round(w * ASPECT), false); // false: 캔버스 style을 건드리지 않음
+    };
+    fit();
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.localClippingEnabled = true;
     mount.appendChild(renderer.domElement);
@@ -110,7 +141,8 @@ export function VenueViewer({ venues, initial, autoStage = false }: { venues: Ve
     sun.position.set(1, 2, 1);
     scene.add(sun);
 
-    const camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 100000);
+    // 높이가 항상 너비 × ASPECT라서 카메라 비율은 바뀌지 않는다
+    const camera = new THREE.PerspectiveCamera(50, 1 / ASPECT, 0.1, 100000);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
@@ -122,13 +154,36 @@ export function VenueViewer({ venues, initial, autoStage = false }: { venues: Ve
     };
     loop();
 
+    // 창 크기·화면 방향·브라우저 확대가 바뀌면 해상도를 다시 맞춘다.
+    // 콜백 안에서 바로 해상도를 바꾸면 반올림 때문에 컨테이너 높이가 1px 안팎 다시 바뀌어
+    // 'ResizeObserver loop completed with undelivered notifications' 경고가 난다. 다음 프레임으로 미룬다.
+    let fitFrame = 0;
+    const resize = new ResizeObserver(() => {
+      cancelAnimationFrame(fitFrame);
+      fitFrame = requestAnimationFrame(fit);
+    });
+    resize.observe(mount);
+    // 배율이 다른 모니터로 옮기면 CSS 크기는 그대로일 수 있어 배율 변화도 따로 감지한다
+    let dprQuery: MediaQueryList | null = null;
+    const onDpr = () => { fit(); watchDpr(); };
+    const watchDpr = () => {
+      dprQuery?.removeEventListener("change", onDpr);
+      dprQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+      dprQuery.addEventListener("change", onDpr);
+    };
+    watchDpr();
+
+    let model: THREE.Object3D | null = null;
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
     loader.load(
       venue.modelUrl,
       (gltf) => {
-        if (disposed) return;
-        const model = gltf.scene;
+        if (disposed) {
+          disposeObject(gltf.scene); // 공연장을 이미 바꾼 뒤에 도착한 모델
+          return;
+        }
+        model = gltf.scene;
         scene.add(model);
         const box = focusBox(model);
         model.traverse((o) => {
@@ -154,8 +209,13 @@ export function VenueViewer({ venues, initial, autoStage = false }: { venues: Ve
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
+      resize.disconnect();
+      cancelAnimationFrame(fitFrame);
+      dprQuery?.removeEventListener("change", onDpr);
       controls.dispose();
+      if (model) disposeObject(model);
       renderer.dispose();
+      renderer.forceContextLoss(); // WebGL 컨텍스트를 가비지 컬렉션을 기다리지 않고 바로 닫는다
       mount.removeChild(renderer.domElement);
       ctx.current = null;
     };
@@ -201,7 +261,7 @@ export function VenueViewer({ venues, initial, autoStage = false }: { venues: Ve
       </div>
 
       <div className="relative min-h-48 overflow-hidden rounded-[20px] bg-ink">
-        <div ref={mountRef} className="w-full [&>canvas]:block [&>canvas]:w-full" />
+        <div ref={mountRef} className="w-full [&>canvas]:block [&>canvas]:h-auto [&>canvas]:w-full" />
         {status !== "ready" && (
           <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-paper">
             {status === "waiting" && (
