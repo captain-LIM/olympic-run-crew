@@ -3,14 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { safeNext } from "@/lib/safeNext";
 import type { AgeGroup } from "@/lib/types";
 
 const AGE_LABEL: Record<AgeGroup, string> = { "14-19": "10대(14~19)", "20s": "20대", "30s": "30대", "40+": "40대 이상" };
-
-/** 외부 사이트로의 오픈 리다이렉트 방지: 같은 사이트 내부 경로만 허용 */
-function safeNext(next?: string): string {
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
-}
 
 export function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: string }) {
   const router = useRouter();
@@ -37,7 +33,7 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: stri
     const data = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) return setError(data.error ?? "요청에 실패했어요.");
-    router.replace(safeNext(next));
+    router.replace(safeNext(next, window.location.origin));
     router.refresh();
   }
 
