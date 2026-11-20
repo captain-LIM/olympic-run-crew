@@ -89,7 +89,7 @@ export default async function AccountPage() {
             ))}
           </ul>
         ) : (
-          <p className="mt-3 text-sm">크루를 완주하면 공연장 3D '무대 시점'이 열려요.</p>
+          <p className="mt-3 text-sm">크루를 완주하면 공연장 3D &lsquo;무대 시점&rsquo;이 열려요.</p>
         )}
       </section>
 
