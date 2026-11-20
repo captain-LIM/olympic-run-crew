@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
   if (!timing.ok) return NextResponse.json({ error: timing.reason, timing }, { status: 422 });
 
   const r = await createCrew({ eventId: show.id, mode, paceMinPerKm: pace, courseId: course.id, startAt, eventStartAt, capacity }, auth.user);
-  if (r.error || !r.crew) return jsonError(r.error ?? "번개를 열 수 없습니다.", 409);
+  // crewId는 요청한 사용자가 이미 멤버인 번개라 알려줘도 된다 (화면에서 그 번개로 가는 링크에 쓴다)
+  if (r.error || !r.crew) return NextResponse.json({ error: r.error ?? "번개를 열 수 없습니다.", crewId: r.existingCrewId }, { status: 409 });
   return NextResponse.json({ crew: r.crew }, { status: 201 });
 }
