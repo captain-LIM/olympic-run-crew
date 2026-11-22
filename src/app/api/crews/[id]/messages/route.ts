@@ -1,14 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { jsonError, readJson, requireUser } from "@/lib/api";
+import { jsonError, readJson, requireUser, tooManyRequests } from "@/lib/api";
+import { hitAll, LIMITS } from "@/lib/rateLimit";
 import { addMessage, getCrew, isMember, listMessages, MESSAGE_MAX } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
-
-/** 사용자별 전송 간격 제한 (도배 방지) */
-const lastSent = new Map<number, number>();
-const MIN_INTERVAL_MS = 1000;
 
 /** GET ?after=<id> : 크루 멤버만, 차단 관계 사용자의 메시지와 숨김 메시지는 제외 */
 export async function GET(req: NextRequest, { params }: Ctx) {
@@ -35,9 +32,12 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   if (!text) return jsonError("메시지를 입력하세요.", 400);
   if (text.length > MESSAGE_MAX) return jsonError(`메시지는 ${MESSAGE_MAX}자 이하로 입력하세요.`, 400);
 
-  const now = Date.now();
-  if (now - (lastSent.get(auth.user.id) ?? 0) < MIN_INTERVAL_MS) return jsonError("너무 빠르게 보내고 있어요.", 429);
-  lastSent.set(auth.user.id, now);
+  // 도배 방지: 사용자별 1초에 1건, 1분에 30건 (DB 기록이라 서버 여러 대에서도 공유)
+  const limited = await hitAll([
+    [LIMITS.chatSecond, [auth.user.id]],
+    [LIMITS.chatMinute, [auth.user.id]],
+  ]);
+  if (!limited.ok) return tooManyRequests("너무 빠르게 보내고 있어요. 잠시 후 다시 보내 주세요.", limited.retryAfterSec);
 
   const messageId = await addMessage(id, auth.user.id, text);
   return NextResponse.json({ id: messageId }, { status: 201 });

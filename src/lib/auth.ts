@@ -69,18 +69,4 @@ export async function createUser(input: { email: string; passwordHash: string; n
   ]);
   return { id: res.insertId, email: input.email, nickname: input.nickname, ageGroup: input.ageGroup };
 }
-
-/** 간단한 로그인 시도 제한 (프로세스 메모리, 10분 창에 5회) */
-const attempts = new Map<string, number[]>();
-export function tooManyAttempts(key: string): boolean {
-  const now = Date.now();
-  const recent = (attempts.get(key) ?? []).filter((t) => now - t < 10 * 60_000);
-  attempts.set(key, recent);
-  return recent.length >= 5;
-}
-export function recordFailedAttempt(key: string): void {
-  attempts.set(key, [...(attempts.get(key) ?? []), Date.now()]);
-}
-export function clearAttempts(key: string): void {
-  attempts.delete(key);
-}
+// 로그인 시도 제한은 lib/rateLimit.ts (DB 기록)로 옮겼다
