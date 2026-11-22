@@ -102,3 +102,15 @@ CREATE TABLE IF NOT EXISTS user_rewards (
   CONSTRAINT fk_rewards_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_rewards_crew FOREIGN KEY (crew_id) REFERENCES crews(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 요청 횟수 제한 (로그인·회원가입·채팅). 서버 메모리가 아니라 DB에 두어
+-- 재시작이나 서버 여러 대(Vercel 서버리스 인스턴스)에서도 같은 기록을 본다.
+-- subject는 이메일·IP 원문 대신 SHA-256 해시(64자)로 저장한다.
+CREATE TABLE IF NOT EXISTS rate_limits (
+  bucket       VARCHAR(32)  NOT NULL,
+  subject      CHAR(64)     NOT NULL,
+  window_start DATETIME     NOT NULL,
+  hits         INT UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (bucket, subject, window_start),
+  KEY idx_rate_limits_window (window_start)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
