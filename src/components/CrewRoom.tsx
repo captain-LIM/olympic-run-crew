@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { crewCalendarEvent, googleCalendarUrl, kakaoDirectionsUrl } from "@/lib/calendar";
 import { MODE_LABEL } from "@/lib/matching";
 import { distanceKm } from "@/lib/park";
 import { formatKstDate, formatKstTime, kstDateString } from "@/lib/time";
@@ -123,6 +124,14 @@ export function CrewRoom({ crewId, course, event, user }: { crewId: string; cour
   const closed = now > showMs + 3 * 3600_000;
   const opensAt = startMs - 30 * 60_000;
   const canCheckIn = now >= opensAt && !closed;
+  // 출발 전인 멤버에게만 캘린더 추가를 보여 준다 (.ics는 멤버만 받을 수 있음)
+  const canAddToCalendar = crew.isMember && startMs > now;
+  const calendarEvent = crewCalendarEvent({
+    crew,
+    course,
+    show: event,
+    origin: typeof window === "undefined" ? "" : window.location.origin,
+  });
 
   return (
     <div className="stack">
@@ -139,7 +148,14 @@ export function CrewRoom({ crewId, course, event, user }: { crewId: string; cour
         <div className="mt-4 flex flex-wrap gap-3">
           <button onClick={share} className="btn btn--white btn--sm">링크 공유하기</button>
           {crew.isMember && <a href="#chat" className="btn btn--white btn--sm lg:hidden">채팅 바로가기</a>}
+          {canAddToCalendar && (
+            <>
+              <a href={`/api/crews/${crewId}/calendar`} className="btn btn--white btn--sm">캘린더에 추가</a>
+              <a href={googleCalendarUrl(calendarEvent)} target="_blank" rel="noopener noreferrer" className="btn btn--white btn--sm">Google 캘린더</a>
+            </>
+          )}
         </div>
+        {canAddToCalendar && <p className="mt-2 text-xs text-rule">캘린더에 넣으면 출발 30분 전에 알려 드려요. 알림은 캘린더 앱 설정에 따라 다를 수 있어요.</p>}
         <div className="mt-6 grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-ink-2 p-4">
             <p className="text-sm text-rule">출발까지</p>
@@ -195,6 +211,9 @@ export function CrewRoom({ crewId, course, event, user }: { crewId: string; cour
               <span>{course.meetingPoint.name}</span>
               <span>{course.distanceKm}km</span>
             </p>
+            <a href={kakaoDirectionsUrl(course.meetingPoint)} target="_blank" rel="noopener noreferrer" className="btn btn--sm mt-4">
+              카카오맵으로 집결지 길찾기
+            </a>
           </section>
 
           {!crew.isMember ? (
