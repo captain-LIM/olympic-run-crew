@@ -1,0 +1,52 @@
+# PR과 main 푸시마다 테스트·타입 검사·린트·빌드를 돌린다.
+# 결과는 PR 화면에 표시만 하고, 실패해도 머지를 막지 않는다
+# (저장소 설정에서 required status check로 지정하지 않았기 때문).
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# 같은 PR에 새 커밋이 올라오면 이전 실행은 취소한다
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 의존성 설치
+        id: install
+        run: npm ci
+
+      # 하나가 실패해도 나머지 검사는 계속 돌려서 한 번에 결과를 본다 (설치가 실패했을 때만 건너뜀)
+      - name: 테스트
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm test
+
+      - name: 타입 검사
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run typecheck
+
+      - name: 린트
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run lint
+
+      # DB 주소·API 키 없이 빌드한다 (공연 목록은 기본 목록으로 대체됨)
+      - name: 빌드
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run build
