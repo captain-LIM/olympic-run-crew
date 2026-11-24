@@ -10,7 +10,7 @@ import { getVenue3D } from "@/lib/data/venue3d";
 import { MODE_LABEL } from "@/lib/matching";
 import { COURSES } from "@/lib/park";
 import { blockedRelations, listCrews } from "@/lib/store";
-import { formatKstDate, formatKstTime, kstDateString } from "@/lib/time";
+import { formatKstDate, formatKstTime, formatPeriod, kstDateString } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -34,8 +34,11 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
           <h1 className="t-title mt-4 !max-w-[28ch]">{show.title}</h1>
           <p className="meta mt-4 !text-ink-2">
             <span>{show.place}</span>
+            {show.kopis && <span>{formatPeriod(show.kopis.from, show.kopis.to)}</span>}
+            {show.kopis?.runtime && <span>{show.kopis.runtime}</span>}
             <span>{crews.length > 0 ? `모집 중인 번개 ${crews.length}개` : "아직 열린 번개가 없어요"}</span>
           </p>
+          {show.kopis && <p className="small mt-2">공연 정보 출처: KOPIS(공연예술통합전산망)</p>}
         </div>
         <Mascot pose="cheer" priority sizes="220px" className="hidden w-40 shrink-0 sm:block lg:w-52" />
       </header>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { formatPeriod } from "@/lib/time";
 import type { Show, VenueId } from "@/lib/types";
 
 const FILTERS: { label: string; ids: VenueId[] | null }[] = [
@@ -16,6 +17,7 @@ const FILTERS: { label: string; ids: VenueId[] | null }[] = [
 export function ShowSearch({ shows, openCounts }: { shows: Show[]; openCounts: Record<string, number> }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState(0);
+  const hasKopis = shows.some((s) => s.kopis);
 
   const results = useMemo(() => {
     const ids = FILTERS[filter].ids;
@@ -42,7 +44,7 @@ export function ShowSearch({ shows, openCounts }: { shows: Show[]; openCounts: R
           </button>
         ))}
       </div>
-      <p className="small mt-5 mb-2" aria-live="polite">{results.length}개 공연. 대관정보에는 날짜가 없어서, 공연을 고른 뒤 티켓의 날짜와 시각을 입력해요</p>
+      <p className="small mt-5 mb-2" aria-live="polite">{results.length}개 공연. {hasKopis ? "기간이 표시된 예정 공연은 회차를 고르고, 대관정보 공연은 날짜가 없어서 티켓의 날짜와 시각을 입력해요" : "대관정보에는 날짜가 없어서, 공연을 고른 뒤 티켓의 날짜와 시각을 입력해요"}</p>
       <ul className="rows">
         {results.slice(0, 20).map((s, i) => (
           <li key={s.id}>
@@ -50,7 +52,7 @@ export function ShowSearch({ shows, openCounts }: { shows: Show[]; openCounts: R
               <span className="num-dot" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span>
               <div className="min-w-0">
                 <p className="row-title">{s.title}</p>
-                <p className="small mt-1">{s.place}</p>
+                <p className="small mt-1">{s.place}{s.kopis && ` · ${formatPeriod(s.kopis.from, s.kopis.to)}`}</p>
               </div>
               {openCounts[s.id] ? <span className="tag tag--blue">번개 {openCounts[s.id]}</span> : <span className="small" aria-hidden="true"></span>}
             </Link>
