@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CongestionPanel } from "@/components/CongestionPanel";
+import { KopisCredit } from "@/components/KopisCredit";
 import { Mascot } from "@/components/Mascot";
 import { ShowSearch } from "@/components/ShowSearch";
 import { getCongestion } from "@/lib/data/congestion";
@@ -117,7 +118,7 @@ export default async function Home() {
       {soon.length > 0 && (
         <section aria-labelledby="soon-title">
           <h2 id="soon-title" className="t-title">곧 열리는 공연</h2>
-          <p className="small mt-2 mb-6">앞으로 {SOON_DAYS}일 안에 올림픽공원에서 열려요. 공연 정보 출처: KOPIS(공연예술통합전산망)</p>
+          <p className="small mt-2 mb-6">앞으로 {SOON_DAYS}일 안에 올림픽공원에서 열려요. 공연 정보 <KopisCredit /></p>
           <ul className="rows">
             {soon.map((s) => {
               const [next, ...rest] = s.kopis!.sessions;

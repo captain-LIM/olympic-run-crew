@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CongestionPanel } from "@/components/CongestionPanel";
 import { CrewFinder } from "@/components/CrewFinder";
+import { KopisCredit } from "@/components/KopisCredit";
 import { Mascot } from "@/components/Mascot";
 import { currentUser } from "@/lib/auth";
 import { getCongestion } from "@/lib/data/congestion";
@@ -38,7 +39,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
             {show.kopis?.runtime && <span>{show.kopis.runtime}</span>}
             <span>{crews.length > 0 ? `모집 중인 번개 ${crews.length}개` : "아직 열린 번개가 없어요"}</span>
           </p>
-          {show.kopis && <p className="small mt-2">공연 정보 출처: KOPIS(공연예술통합전산망)</p>}
+          {show.kopis && <p className="small mt-2">공연 정보 <KopisCredit /></p>}
         </div>
         <Mascot pose="cheer" priority sizes="220px" className="hidden w-40 shrink-0 sm:block lg:w-52" />
       </header>
