@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { jsonError, requireUser } from "@/lib/api";
 import { buildIcs, crewCalendarEvent } from "@/lib/calendar";
 import { getShow } from "@/lib/data/shows";
+import { requestOrigin } from "@/lib/origin";
 import { getCourse } from "@/lib/park";
 import { getCrew, isMember } from "@/lib/store";
 
@@ -20,7 +21,9 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   if (!course) return jsonError("코스를 찾을 수 없습니다.", 404);
   const show = await getShow(crew.eventId);
 
-  const ics = buildIcs(crewCalendarEvent({ crew, course, show: { title: show?.title ?? "공연" }, origin: req.nextUrl.origin }));
+  // req.nextUrl.origin은 서버 자신의 주소(localhost)가 되므로, 실제 접속 주소를 헤더로 만든다
+  const origin = requestOrigin(req.headers, req.nextUrl.origin);
+  const ics = buildIcs(crewCalendarEvent({ crew, course, show: { title: show?.title ?? "공연" }, origin }));
   return new Response(ics, {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
