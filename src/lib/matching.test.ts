@@ -30,7 +30,7 @@ describe("validateTiming", () => {
   it("accepts a start that leaves the entry buffer", () => {
     const r = validateTiming({ startAt: new Date("2026-11-21T17:30:00+09:00"), eventStartAt: eventStart, course: lake, pace: 12, venueId: "kspo-dome" });
     expect(r.ok).toBe(true);
-    expect(r.durationMin).toBe(19);
+    expect(r.durationMin).toBe(Math.round(lake.distanceKm * 12));
   });
 
   it("rejects a start too close to the show", () => {

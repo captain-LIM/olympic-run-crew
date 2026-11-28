@@ -21,7 +21,7 @@ describe("foldIcsLine", () => {
   });
 
   it("folds long Korean lines to 75 bytes without splitting a character", () => {
-    const line = "DESCRIPTION:" + "공연 전 한 바퀴 몽촌호수 산책 ".repeat(10);
+    const line = "DESCRIPTION:" + "공연 전 한 바퀴 몽촌호 산책 ".repeat(10);
     const folded = foldIcsLine(line);
     const parts = folded.split("\r\n");
     expect(parts.length).toBeGreaterThan(1);
@@ -34,11 +34,11 @@ describe("foldIcsLine", () => {
 
 const event: CalendarEvent = {
   uid: "crew-abc@olympic-run-crew",
-  title: "[공연 전 한 바퀴] 몽촌호수 한 바퀴 · 산책",
+  title: "[공연 전 한 바퀴] 몽촌호 한 바퀴 · 산책",
   start: new Date("2026-11-28T08:30:00Z"),
   end: new Date("2026-11-28T08:49:00Z"),
-  location: "몽촌호수 수변무대 앞 (올림픽공원)",
-  geo: { lat: 37.5209, lng: 127.1214 },
+  location: "서울올림픽기념관 앞 (올림픽공원)",
+  geo: { lat: 37.52035, lng: 127.11609 },
   description: "공연: 테스트, 콘서트\n크루방: https://example.com/crews/abc",
   url: "https://example.com/crews/abc",
   alarmMinutesBefore: 30,
@@ -60,7 +60,7 @@ describe("buildIcs", () => {
     expect(lines).toContain("DTSTART:20261128T083000Z");
     expect(lines).toContain("DTEND:20261128T084900Z");
     expect(lines).toContain("DTSTAMP:20261122T000000Z");
-    expect(lines).toContain("GEO:37.5209;127.1214");
+    expect(lines).toContain("GEO:37.52035;127.11609");
     expect(lines).toContain("DESCRIPTION:공연: 테스트\\, 콘서트\\n크루방: https://example.com/crews/abc");
     expect(lines).toContain("TRIGGER:-PT30M");
   });
@@ -94,7 +94,7 @@ describe("links", () => {
 });
 
 describe("crewCalendarEvent", () => {
-  const course = getCourse("lake-loop")!; // 1.6km
+  const course = getCourse("lake-loop")!;
   const e = crewCalendarEvent({
     crew: { id: "abc123", mode: "walk", paceMinPerKm: 12, startAt: "2026-11-28T08:30:00.000Z", eventStartAt: "2026-11-28T10:00:00.000Z" },
     course,
@@ -104,7 +104,8 @@ describe("crewCalendarEvent", () => {
 
   it("starts at departure and lasts the estimated course time", () => {
     expect(e.start.toISOString()).toBe("2026-11-28T08:30:00.000Z");
-    expect(e.end.toISOString()).toBe("2026-11-28T08:49:00.000Z"); // 1.6km × 12분/km ≈ 19분
+    // 코스 거리 × 12분/km
+    expect(e.end.getTime() - e.start.getTime()).toBe(Math.round(course.distanceKm * 12) * 60_000);
   });
 
   it("links the crew room and directions, without member nicknames", () => {
@@ -112,7 +113,7 @@ describe("crewCalendarEvent", () => {
     expect(e.description).toContain("https://example.com/crews/abc123");
     expect(e.description).toContain("https://map.kakao.com/link/to/");
     expect(e.description).toContain("테스트 콘서트");
-    expect(e.title).toBe("[공연 전 한 바퀴] 몽촌호수 한 바퀴 · 산책");
+    expect(e.title).toBe(`[공연 전 한 바퀴] ${course.name} · 산책`);
     expect(e.alarmMinutesBefore).toBe(30);
   });
 });

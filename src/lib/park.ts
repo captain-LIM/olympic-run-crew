@@ -1,14 +1,18 @@
+import { COURSE_GEO } from "./parkGeo";
 import type { Course, LatLng, Venue, VenueId } from "./types";
 
-/** 좌표는 데모용 근사값이다. 실서비스 전 실측 좌표로 교체할 것. */
+/**
+ * 공연장 좌표: OpenStreetMap의 각 시설 위치(2026-11-28 확인). 지도 데이터 © OpenStreetMap 기여자.
+ * 수변무대는 몽촌호가 아니라 88호수 남쪽에 있다.
+ */
 export const VENUES: Record<VenueId, Venue> = {
-  "kspo-dome": { id: "kspo-dome", name: "KSPO DOME", lat: 37.5194, lng: 127.1273 },
-  handball: { id: "handball", name: "SK핸드볼경기장", lat: 37.5163, lng: 127.1262 },
-  "woori-art-hall": { id: "woori-art-hall", name: "우리금융아트홀", lat: 37.5172, lng: 127.1284 },
-  "olympic-hall": { id: "olympic-hall", name: "올림픽홀", lat: 37.5203, lng: 127.1196 },
-  waterside: { id: "waterside", name: "수변무대", lat: 37.5209, lng: 127.1214 },
-  "88-lawn": { id: "88-lawn", name: "88잔디마당", lat: 37.5196, lng: 127.1229 },
-  other: { id: "other", name: "올림픽공원", lat: 37.5207, lng: 127.1214 },
+  "kspo-dome": { id: "kspo-dome", name: "KSPO DOME", lat: 37.5192, lng: 127.1275 },
+  handball: { id: "handball", name: "SK핸드볼경기장", lat: 37.5173, lng: 127.1264 },
+  "woori-art-hall": { id: "woori-art-hall", name: "우리금융아트홀", lat: 37.5167, lng: 127.1251 },
+  "olympic-hall": { id: "olympic-hall", name: "올림픽홀", lat: 37.5147, lng: 127.1276 },
+  waterside: { id: "waterside", name: "수변무대", lat: 37.5212, lng: 127.1254 },
+  "88-lawn": { id: "88-lawn", name: "88잔디마당", lat: 37.519, lng: 127.125 },
+  other: { id: "other", name: "올림픽공원", lat: 37.519, lng: 127.1224 },
 };
 
 const VENUE_PATTERNS: [RegExp, VenueId][] = [
@@ -37,41 +41,42 @@ export const DEFAULT_SHOW_TIME: Record<VenueId, string> = {
   other: "17:00",
 };
 
+/**
+ * 코스: 경로·거리·집결지는 parkGeo.ts(OpenStreetMap 보행로 기준). 거리는 경로 길이를 0.1km 단위로 반올림.
+ * id는 저장된 번개(crews.course_id)가 참조하므로 바꾸지 않는다.
+ */
+const geo = (id: string, name: string) => {
+  const g = COURSE_GEO[id];
+  return { distanceKm: Math.round(g.km * 10) / 10, meetingPoint: { name, ...g.meetingPoint }, path: g.path };
+};
+
 export const COURSES: Course[] = [
   {
     id: "lake-loop",
-    name: "몽촌호수 한 바퀴",
-    distanceKm: 1.6,
-    description: "평지 위주, 공연 전 가볍게 걷기 좋은 코스",
-    meetingPoint: { name: "몽촌호수 수변무대 앞", lat: 37.5209, lng: 127.1214 },
-    path: [[37.5209, 127.1214], [37.5222, 127.1198], [37.5226, 127.1222], [37.5214, 127.1238], [37.5209, 127.1214]],
+    name: "몽촌호 한 바퀴",
+    description: "몽촌호를 따라 한 바퀴 도는 코스, 공연 전 가볍게 걷기 좋음",
+    ...geo("lake-loop", "서울올림픽기념관 앞"),
     modes: ["walk", "jog"],
   },
   {
     id: "peace-gate",
-    name: "평화의 문 · 88잔디마당 산책",
-    distanceKm: 2.2,
+    name: "세계평화의 문 · 88잔디마당 산책",
     description: "포토스팟 많은 산책 코스, 굿즈 구매 후 합류하기 좋음",
-    meetingPoint: { name: "88잔디마당 입구", lat: 37.5196, lng: 127.1229 },
-    path: [[37.5196, 127.1229], [37.5205, 127.117], [37.5188, 127.116], [37.518, 127.1205], [37.5196, 127.1229]],
+    ...geo("peace-gate", "88잔디마당 입구"),
     modes: ["walk"],
   },
   {
     id: "mongchon-fortress",
-    name: "몽촌토성 둘레길",
-    distanceKm: 2.7,
+    name: "몽촌토성 한 바퀴",
     description: "완만한 언덕 포함, 조깅 추천",
-    meetingPoint: { name: "몽촌토성 남측 입구", lat: 37.5165, lng: 127.1215 },
-    path: [[37.5165, 127.1215], [37.515, 127.1185], [37.5168, 127.115], [37.519, 127.118], [37.5182, 127.1225], [37.5165, 127.1215]],
+    ...geo("mongchon-fortress", "한성백제박물관 앞"),
     modes: ["jog", "run"],
   },
   {
     id: "perimeter",
     name: "올림픽공원 외곽 순환",
-    distanceKm: 4.5,
     description: "공원 외곽을 크게 도는 러닝 코스",
-    meetingPoint: { name: "KSPO DOME 광장", lat: 37.519, lng: 127.1262 },
-    path: [[37.519, 127.1262], [37.5236, 127.126], [37.524, 127.118], [37.5195, 127.114], [37.515, 127.118], [37.5148, 127.126], [37.519, 127.1262]],
+    ...geo("perimeter", "KSPO DOME 앞"),
     modes: ["run"],
   },
 ];
