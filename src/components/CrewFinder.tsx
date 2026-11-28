@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_PACE, MODE_LABEL, recommendCourses, validateTiming } from "@/lib/matching";
 import { COURSES, DEFAULT_SHOW_TIME } from "@/lib/park";
 import { predictedLevelAt, predictShowDay } from "@/lib/prediction";
-import { formatKstTime, fromKstLocalInput, kstDateString, toKstLocalInput } from "@/lib/time";
+import { formatKstSession, formatKstTime, fromKstLocalInput, kstDateString, toKstLocalInput } from "@/lib/time";
 import type { AgeGroup, Crew, CrewMode, DayType, HourlyPoint, Show } from "@/lib/types";
 import { LEVEL_STYLE } from "./CongestionPanel";
 import { CourseMap } from "./CourseMap";
@@ -38,7 +38,10 @@ export function CrewFinder({
   user: { nickname: string; ageGroup: AgeGroup } | null;
 }) {
   const router = useRouter();
-  const [showAt, setShowAt] = useState(() => defaultShowTime(show));
+  // KOPIS 공연이면 회차 목록에서 고르고, 목록이 없거나 '직접 입력'을 고르면 날짜·시각을 입력한다
+  const sessions = show.kopis?.sessions ?? [];
+  const [manual, setManual] = useState(sessions.length === 0);
+  const [showAt, setShowAt] = useState(() => sessions[0] ?? defaultShowTime(show));
   const [startAt, setStartAt] = useState(() => defaultStart(showAt));
   const [mode, setMode] = useState<CrewMode>("walk");
   const [pace, setPace] = useState(DEFAULT_PACE.walk);
@@ -81,6 +84,18 @@ export function CrewFinder({
   const course = COURSES.find((c) => c.id === courseId);
   const timing = course ? validateTiming({ startAt: startDate, eventStartAt: showDate, course, pace, venueId: show.venueId }) : null;
   const loginHref = `/login?next=${encodeURIComponent(`/events/${show.id}`)}`;
+
+  function changeShowAt(value: string) {
+    setShowAt(value);
+    setStartAt(defaultStart(value));
+    setMatches(null);
+  }
+
+  function pickSession(value: string) {
+    if (value === "manual") return setManual(true); // 입력칸은 지금 고른 회차로 채워 둔다
+    setManual(false);
+    changeShowAt(value);
+  }
 
   function selectMode(m: CrewMode) {
     setMode(m);
@@ -141,11 +156,29 @@ export function CrewFinder({
         <section className="cell lg:col-span-7">
           <h2 className="t-cell">내 티켓 정보</h2>
           <p className="small mt-2">번개는 &lsquo;공연 전 함께 걷거나 달릴 모임&rsquo;이에요. 티켓의 날짜와 시각을 넣으면 그 시간대 혼잡 예측이 아래에 나와요.</p>
-          <label className="mt-4 block">
-            <span className="label">공연 날짜·시작 시각</span>
-            <input type="datetime-local" value={showAt} onChange={(e) => { setShowAt(e.target.value); setStartAt(defaultStart(e.target.value)); setMatches(null); }} className="field" />
-            <span className="small mt-2 block">같은 공연·같은 날짜를 입력한 사람끼리 매칭돼요.</span>
-          </label>
+          {sessions.length > 0 && (
+            <label className="mt-4 block">
+              <span className="label">공연 회차</span>
+              <select value={manual ? "manual" : showAt} onChange={(e) => pickSession(e.target.value)} className="field">
+                {sessions.map((s) => <option key={s} value={s}>{formatKstSession(s)}</option>)}
+                <option value="manual">목록에 없어요 (직접 입력)</option>
+              </select>
+            </label>
+          )}
+          {show.kopis && (
+            <p className="note mt-4">
+              {sessions.length > 0
+                ? <>회차는 KOPIS의 요일별 공연 시간 안내({show.kopis.schedule.replace(/HOL/g, "공휴일")})로 만든 거예요. <strong>티켓의 날짜·시각과 같은지 꼭 확인하세요.</strong> 다르면 &lsquo;직접 입력&rsquo;을 골라 주세요.{show.kopis.holidaySessions && " 공휴일 회차는 따로 있어 목록에 없어요."}</>
+                : <>KOPIS 공연 시간 안내: {show.kopis.schedule.replace(/HOL/g, "공휴일") || "없음"}. 티켓의 날짜와 시각을 직접 입력해 주세요.</>}
+            </p>
+          )}
+          {manual && (
+            <label className="mt-4 block">
+              <span className="label">공연 날짜·시작 시각</span>
+              <input type="datetime-local" value={showAt} onChange={(e) => changeShowAt(e.target.value)} className="field" />
+            </label>
+          )}
+          <p className="small mt-2">같은 공연·같은 날짜를 입력한 사람끼리 매칭돼요.</p>
         </section>
 
       <div className="lg:col-span-5 lg:col-start-8 lg:row-span-2 lg:row-start-1 lg:sticky lg:top-24">

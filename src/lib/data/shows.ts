@@ -1,5 +1,7 @@
 import { resolveVenue, VENUES } from "../park";
 import type { Show } from "../types";
+import { KOPIS_ID_PREFIX } from "./kopis";
+import { getKopisShow, getKopisShows, type KopisStatus } from "./kopisFetch";
 import { parseItems, parseResultCode, pick } from "./xml";
 
 /**
@@ -48,7 +50,7 @@ const FALLBACK: Show[] = [
   makeShow("신비아파트 뮤지컬 시즌5 : 감염된 도시의 비밀 - 서울", "우리금융아트홀"),
 ];
 
-export async function getShows(): Promise<{ shows: Show[]; source: "api" | "fallback"; error?: string }> {
+async function getRentalShows(): Promise<{ shows: Show[]; source: "api" | "fallback"; error?: string }> {
   const key = process.env.KSPO_RENTAL_SERVICE_KEY;
   if (!key) return { shows: FALLBACK, source: "fallback", error: "KSPO_RENTAL_SERVICE_KEY 미설정" };
   const url = process.env.KSPO_RENTAL_API_URL || DEFAULT_URL;
@@ -67,6 +69,21 @@ export async function getShows(): Promise<{ shows: Show[]; source: "api" | "fall
   }
 }
 
+/**
+ * 공연 목록: KOPIS 예정 공연(가까운 회차 순) 다음에 대관정보 공연.
+ * source는 대관정보 상태, kopis는 KOPIS 상태 (off: 키 없음, error: 호출 실패 → KOPIS 공연 없이 동작)
+ */
+export async function getShows(): Promise<{ shows: Show[]; source: "api" | "fallback"; kopis: KopisStatus; kopisCount: number; error?: string }> {
+  const [rental, kopis] = await Promise.all([getRentalShows(), getKopisShows()]);
+  return { ...rental, shows: [...kopis.shows, ...rental.shows], kopis: kopis.status, kopisCount: kopis.shows.length };
+}
+
 export async function getShow(id: string): Promise<Show | undefined> {
-  return (await getShows()).shows.find((s) => s.id === id);
+  if (id.startsWith(KOPIS_ID_PREFIX)) return getKopisShow(id);
+  return (await getRentalShows()).shows.find((s) => s.id === id);
+}
+
+/** 이미 열린 번개의 공연을 지금 찾을 수 없을 때(API 장애, 키 없음) 화면에 대신 쓰는 값 */
+export function unknownShow(id: string): Show {
+  return { id, title: "공연 정보를 불러오지 못했어요", place: "올림픽공원", venueId: "other", venueName: "올림픽공원" };
 }

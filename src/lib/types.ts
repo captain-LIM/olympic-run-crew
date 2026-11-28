@@ -17,14 +17,34 @@ export interface Venue extends LatLng {
   name: string;
 }
 
-/** 올림픽공원 대관정보 API(api.kcisa.kr meta12/getKSCD0803) 한 건 */
+/**
+ * 공연 한 건. 올림픽공원 대관정보 API(api.kcisa.kr meta12/getKSCD0803)
+ * 또는 KOPIS 공연예술통합전산망(id가 "k-"로 시작, kopis 필드 있음)
+ */
 export interface Show {
   id: string;
   title: string;
-  /** API의 spatial 원문 (예: 체조경기장, 뮤즈라이브) */
+  /** 공연장 이름 원문 (대관정보 spatial 예: 체조경기장, KOPIS 예: KSPO DOME(체조경기장)) */
   place: string;
   venueId: VenueId;
   venueName: string;
+  kopis?: KopisSchedule;
+}
+
+/** KOPIS 공연의 기간·회차 */
+export interface KopisSchedule {
+  from: string; // YYYY-MM-DD
+  to: string; // YYYY-MM-DD
+  /** 공연 시간 (예: 2시간 10분), 없으면 빈 문자열 */
+  runtime: string;
+  /** dtguidance 원문 (예: 금요일(19:00), 토요일 ~ 일요일(16:00)) */
+  schedule: string;
+  /** schedule을 요일별 시각으로 해석했는지. false면 회차 목록 없이 직접 입력 */
+  scheduleKnown: boolean;
+  /** 공휴일 회차(HOL)가 따로 있음. 어느 날이 공휴일인지는 몰라 회차 목록에 없다 */
+  holidaySessions: boolean;
+  /** 앞으로의 회차 (KST, YYYY-MM-DDTHH:mm) */
+  sessions: string[];
 }
 
 export type CongestionLevel = "여유" | "보통" | "혼잡" | "매우혼잡";

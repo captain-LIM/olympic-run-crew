@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { BlockList } from "@/components/BlockList";
 import { Mascot } from "@/components/Mascot";
 import { currentUser } from "@/lib/auth";
-import { getShows } from "@/lib/data/shows";
+import { KOPIS_ID_PREFIX } from "@/lib/data/kopis";
+import { getShow, getShows } from "@/lib/data/shows";
 import { query } from "@/lib/db";
 import { VENUES } from "@/lib/park";
 import { computeBadges, summarizeFinished } from "@/lib/badges";
@@ -33,6 +34,10 @@ export default async function AccountPage() {
     getShows(),
     finishedCrewRows(user.id),
   ]);
+  // 끝난 KOPIS 공연은 목록(앞으로 90일)에 없으므로 공연별로 찾는다 (공연 상세는 캐시됨)
+  const known = new Set(shows.map((s) => s.id));
+  const missing = [...new Set([...myCrews.map((c) => c.event_id), ...finished.map((f) => f.eventId)])].filter((id) => id.startsWith(KOPIS_ID_PREFIX) && !known.has(id));
+  for (const s of await Promise.all(missing.map((id) => getShow(id)))) if (s) shows.push(s);
   const title = new Map(shows.map((s) => [s.id, s.title]));
   const venueOf = new Map(shows.map((s) => [s.id, s.venueId as string]));
   const stats = summarizeFinished(finished.map((f) => ({ venueId: venueOf.get(f.eventId), distanceKm: COURSES.find((c) => c.id === f.courseId)?.distanceKm ?? 0 })));

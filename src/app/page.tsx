@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CongestionPanel } from "@/components/CongestionPanel";
+import { KopisCredit } from "@/components/KopisCredit";
 import { Mascot } from "@/components/Mascot";
 import { ShowSearch } from "@/components/ShowSearch";
 import { getCongestion } from "@/lib/data/congestion";
@@ -7,13 +8,18 @@ import { getShows } from "@/lib/data/shows";
 import { MODE_LABEL } from "@/lib/matching";
 import { currentUser } from "@/lib/auth";
 import { listCrews, myUpcomingCrews } from "@/lib/store";
-import { formatKstDate, formatKstTime, kstDateString } from "@/lib/time";
+import { formatKstDate, formatKstSession, formatKstTime, kstDateString, toKstLocalInput } from "@/lib/time";
 import type { Crew } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
+const SOON_DAYS = 14;
+
 export default async function Home() {
-  const { shows, source } = await getShows();
+  const { shows, source, kopis, kopisCount } = await getShows();
+  // KOPIS 공연 중 2주 안에 회차가 있는 것 (getShows가 가까운 회차 순으로 준다)
+  const soonLimit = toKstLocalInput(new Date(Date.now() + SOON_DAYS * 86_400_000));
+  const soon = shows.filter((s) => s.kopis?.sessions[0] && s.kopis.sessions[0] <= soonLimit).slice(0, 6);
   const congestion = getCongestion();
   const showById = new Map(shows.map((s) => [s.id, s]));
 
@@ -109,11 +115,41 @@ export default async function Home() {
         </section>
       )}
 
+      {soon.length > 0 && (
+        <section aria-labelledby="soon-title">
+          <h2 id="soon-title" className="t-title">곧 열리는 공연</h2>
+          <p className="small mt-2 mb-6">앞으로 {SOON_DAYS}일 안에 올림픽공원에서 열려요. 공연 정보 <KopisCredit /></p>
+          <ul className="rows">
+            {soon.map((s) => {
+              const [next, ...rest] = s.kopis!.sessions;
+              return (
+                <li key={s.id}>
+                  <Link href={`/events/${s.id}`} className="row-link row-link--2">
+                    <div className="min-w-0">
+                      <p className="row-title">{s.title}</p>
+                      <p className="meta mt-1">
+                        <span>{formatKstSession(next)}{rest.length > 0 && ` 외 ${rest.length}회`}</span>
+                        <span>{s.place}</span>
+                      </p>
+                    </div>
+                    {openCounts[s.id] ? <span className="tag tag--blue">번개 {openCounts[s.id]}</span> : <span className="small" aria-hidden="true"></span>}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       <section id="shows" aria-labelledby="shows-title" className="scroll-mt-24">
         <div className="mb-6 flex items-end justify-between gap-6">
           <div>
             <h2 id="shows-title" className="t-title">공연 찾기</h2>
-            <p className="small mt-2">올림픽공원 대관정보 {shows.length}건{source === "fallback" && " (API 연결 실패, 기본 목록)"}</p>
+            <p className="small mt-2">
+              {kopisCount > 0 && `예정 공연 ${kopisCount}건(KOPIS) · `}
+              올림픽공원 대관정보 {shows.length - kopisCount}건{source === "fallback" && " (API 연결 실패, 기본 목록)"}
+              {kopis === "error" && " · 예정 공연(KOPIS)을 지금 불러오지 못했어요"}
+            </p>
           </div>
           <Mascot pose="run" sizes="200px" className="w-28 shrink-0 sm:w-40" />
         </div>
