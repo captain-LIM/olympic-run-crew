@@ -159,7 +159,8 @@ export function CrewRoom({ crewId, course, event, user }: { crewId: string; cour
         <p className="mt-1 text-sm text-rule">{formatKstDate(kstDateString(new Date(crew.startAt)))} · 집결지 {course.meetingPoint.name}</p>
         <div className="mt-4 flex flex-wrap gap-3">
           <button onClick={share} className="btn btn--white btn--sm">링크 공유하기</button>
-          {crew.isMember && <a href="#chat" className="btn btn--white btn--sm lg:hidden">채팅 바로가기</a>}
+          {/* ui.css는 레이어 밖이라 .btn의 display가 lg:hidden을 이긴다 → !로 우선 */}
+          {crew.isMember && <a href="#chat" className="btn btn--white btn--sm lg:!hidden">채팅 바로가기</a>}
           {canAddToCalendar && (
             <>
               <a href={`/api/crews/${crewId}/calendar`} className="btn btn--white btn--sm">캘린더에 추가</a>
